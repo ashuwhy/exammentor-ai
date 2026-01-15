@@ -3,7 +3,15 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ============================================================================
+   ExamMentor AI - Design System (Based on RecallFrontend)
+   ============================================================================
+   Dual-theme approach: Light (cream/beige) and Dark (dark gray)
+   All colors use CSS custom properties for dynamic theming.
+   ============================================================================ */
+
 @theme inline {
+  /* Base shadcn theme mappings */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -46,80 +54,281 @@
   --radius-4xl: calc(var(--radius) + 16px);
 }
 
+/* ============================================================================
+   Light Theme (Default) - Cream/Beige
+   ============================================================================ */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --radius: 0.5rem;
+
+  /* Base Colors */
+  --background: #f5f5f0;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1a;
+
+  /* Primary - Blue */
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+
+  /* Secondary */
+  --secondary: #f0f0eb;
+  --secondary-foreground: #525252;
+
+  /* Muted */
+  --muted: #e8e8e3;
+  --muted-foreground: #737373;
+
+  /* Accent */
+  --accent: #dbeafe;
+  --accent-foreground: #1e40af;
+
+  /* Destructive */
+  --destructive: #dc2626;
+
+  /* Borders & Inputs */
+  --border: #e5e5e0;
+  --input: #e5e5e0;
+  --ring: #3b82f6;
+
+  /* Chart Colors */
+  --chart-1: #3b82f6;
+  --chart-2: #22c55e;
+  --chart-3: #f59e0b;
+  --chart-4: #8b5cf6;
+  --chart-5: #ec4899;
+
+  /* Sidebar */
+  --sidebar: #f8f8f5;
+  --sidebar-foreground: #1a1a1a;
+  --sidebar-primary: #3b82f6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #dbeafe;
+  --sidebar-accent-foreground: #1e40af;
+  --sidebar-border: #e5e5e0;
+  --sidebar-ring: #3b82f6;
+
+  /* Status Colors */
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --error: #dc2626;
+  --info: #3b82f6;
+
+  /* Mastery Levels */
+  --mastered: #22c55e;
+  --learning: #f59e0b;
+  --weak: #dc2626;
+  --pending: #737373;
 }
 
+/* ============================================================================
+   Dark Theme - Dark Gray
+   ============================================================================ */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Base Colors */
+  --background: #1e1e1e;
+  --foreground: #e5e5e5;
+  --card: #262626;
+  --card-foreground: #e5e5e5;
+  --popover: #262626;
+  --popover-foreground: #e5e5e5;
+
+  /* Primary - Lighter Blue for Dark Mode */
+  --primary: #60a5fa;
+  --primary-foreground: #0a0a0a;
+
+  /* Secondary */
+  --secondary: #2a2a2a;
+  --secondary-foreground: #e5e5e5;
+
+  /* Muted */
+  --muted: #2a2a2a;
+  --muted-foreground: #a3a3a3;
+
+  /* Accent */
+  --accent: #2a2a2a;
+  --accent-foreground: #e5e5e5;
+
+  /* Destructive - Lighter Red for Dark Mode */
+  --destructive: #f87171;
+
+  /* Borders & Inputs */
+  --border: #3a3a3a;
+  --input: #3a3a3a;
+  --ring: #60a5fa;
+
+  /* Chart Colors - Lighter for Dark Mode */
+  --chart-1: #60a5fa;
+  --chart-2: #34d399;
+  --chart-3: #fbbf24;
+  --chart-4: #a78bfa;
+  --chart-5: #f472b6;
+
+  /* Sidebar */
+  --sidebar: #1a1a1a;
+  --sidebar-foreground: #e5e5e5;
+  --sidebar-primary: #60a5fa;
+  --sidebar-primary-foreground: #0a0a0a;
+  --sidebar-accent: #2a2a2a;
+  --sidebar-accent-foreground: #e5e5e5;
+  --sidebar-border: #3a3a3a;
+  --sidebar-ring: #60a5fa;
+
+  /* Status Colors */
+  --success: #34d399;
+  --warning: #fbbf24;
+  --error: #f87171;
+  --info: #60a5fa;
+
+  /* Mastery Levels */
+  --mastered: #34d399;
+  --learning: #fbbf24;
+  --weak: #f87171;
+  --pending: #a3a3a3;
 }
 
+/* ============================================================================
+   Base Styles
+   ============================================================================ */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    letter-spacing: -0.01em;
+    line-height: 1.6;
+  }
+  ::selection {
+    background-color: hsl(var(--primary) / 0.2);
   }
 }
+
+/* ============================================================================
+   Typography
+   ============================================================================ */
+h1, h2, h3, h4, h5, h6 {
+  @apply tracking-tight;
+}
+
+/* ============================================================================
+   Shadows - Soft & Minimal
+   ============================================================================ */
+.shadow-soft {
+  box-shadow: 
+    0 1px 2px 0 rgba(0, 0, 0, 0.03),
+    0 1px 3px 0 rgba(0, 0, 0, 0.02);
+}
+
+.shadow-soft-md {
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 2px 4px -2px rgba(0, 0, 0, 0.03);
+}
+
+.shadow-soft-lg {
+  box-shadow: 
+    0 10px 15px -3px rgba(0, 0, 0, 0.06),
+    0 4px 6px -4px rgba(0, 0, 0, 0.04);
+}
+
+.shadow-soft-xl {
+  box-shadow: 
+    0 20px 25px -5px rgba(0, 0, 0, 0.06),
+    0 8px 10px -6px rgba(0, 0, 0, 0.04);
+}
+
+/* Glow Effects */
+.glow-primary {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.15);
+}
+
+.glow-primary-lg {
+  box-shadow: 0 0 40px rgba(59, 130, 246, 0.2);
+}
+
+/* ============================================================================
+   Card Variants
+   ============================================================================ */
+.card-soft {
+  @apply bg-card border border-border rounded-lg;
+  box-shadow: 
+    0 1px 2px 0 rgba(0, 0, 0, 0.03),
+    0 1px 3px 0 rgba(0, 0, 0, 0.02);
+}
+
+.card-elevated {
+  @apply bg-card border border-border/50 rounded-lg;
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.05),
+    0 2px 4px -2px rgba(0, 0, 0, 0.03);
+}
+
+.panel-glass {
+  @apply bg-card/90 backdrop-blur-xl border border-border/60 rounded-lg;
+}
+
+/* ============================================================================
+   Input Styles
+   ============================================================================ */
+.input-clean {
+  @apply bg-background border border-border rounded-lg px-4 py-2.5;
+  @apply placeholder:text-muted-foreground;
+  @apply focus:outline-none focus:ring-2 focus:ring-ring;
+  @apply transition-all duration-200;
+}
+
+/* ============================================================================
+   Animations
+   ============================================================================ */
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes slideUp {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  0% { opacity: 0; transform: translateY(-8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  0% { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s ease-out;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.4s ease-out;
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.2s ease-out;
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* ============================================================================
+   Prose / Rich Text (requires @tailwindcss/typography if needed)
+   ============================================================================ */
+

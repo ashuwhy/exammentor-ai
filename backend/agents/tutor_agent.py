@@ -1,0 +1,154 @@
+"""
+Tutor Agent - Streams explanations using Gemini 3 Deep Think for reasoning.
+
+Uses the Feynman Technique for intuitive explanations.
+"""
+
+import os
+from typing import AsyncGenerator
+from google import genai
+from pydantic import BaseModel, Field
+from typing import List, Optional
+
+
+# --- Structured Output for Complete Explanations ---
+
+class ExplanationStep(BaseModel):
+    step_number: int
+    title: str
+    content: str
+    analogy: Optional[str] = Field(default=None, description="Optional analogy to make concept clearer")
+
+
+class TutorExplanation(BaseModel):
+    topic: str
+    intuition: str = Field(description="Simple one-line intuition for the concept")
+    steps: List[ExplanationStep]
+    real_world_example: str
+    common_pitfall: str = Field(description="Common mistake students make with this topic")
+    practice_question: Optional[str] = Field(default=None, description="Quick check question")
+
+
+# --- Streaming Explanation Generator ---
+
+async def stream_explanation(
+    topic: str,
+    context: str,
+    difficulty: str = "medium"
+) -> AsyncGenerator[str, None]:
+    """
+    Stream an explanation character-by-character for live UI feedback.
+    
+    Args:
+        topic: The topic to explain
+        context: Relevant context from the syllabus/textbook
+        difficulty: easy, medium, or hard - adjusts explanation depth
+        
+    Yields:
+        str: Chunks of the explanation text
+    """
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    
+    depth_instruction = {
+        "easy": "Use simple language, many analogies, avoid jargon",
+        "medium": "Balance depth with clarity, include some technical terms",
+        "hard": "Be comprehensive, include edge cases and advanced concepts"
+    }.get(difficulty, "Balance depth with clarity")
+    
+    prompt = f"""
+You are an expert tutor using the Feynman Technique.
+Explain "{topic}" to a student preparing for their exam.
+
+CONTEXT FROM THEIR STUDY MATERIAL:
+{context[:5000]}
+
+EXPLANATION STYLE ({difficulty.upper()}):
+{depth_instruction}
+
+STRUCTURE YOUR RESPONSE:
+1. **Intuition**: Start with a simple analogy or mental model
+2. **Deep Explanation**: Break down the concept step-by-step, showing your reasoning
+3. **Real Example**: Give a concrete real-world application
+4. **Common Mistake**: Warn about a typical misconception
+5. **Quick Check**: End with a simple question to test understanding
+
+Use markdown formatting. Be encouraging but accurate.
+"""
+
+    # Enable streaming for live UI feedback
+    async for chunk in client.aio.models.generate_content_stream(
+        model=os.getenv("GEMINI_MODEL", "gemini-2.5-pro-preview-05-06"),
+        contents=prompt
+    ):
+        if chunk.text:
+            yield chunk.text
+
+
+# --- Structured Explanation (Non-streaming, complete response) ---
+
+async def generate_explanation(
+    topic: str,
+    context: str,
+    difficulty: str = "medium"
+) -> TutorExplanation:
+    """
+    Generate a complete structured explanation (non-streaming).
+    
+    Returns a validated Pydantic model with all explanation components.
+    """
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    
+    prompt = f"""
+You are an expert tutor using the Feynman Technique.
+Explain "{topic}" comprehensively.
+
+CONTEXT:
+{context[:5000]}
+
+Create a complete explanation with:
+- A simple intuition
+- Step-by-step breakdown with analogies
+- Real-world example
+- Common pitfall to avoid
+- Practice question
+"""
+
+    response = await client.aio.models.generate_content(
+        model=os.getenv("GEMINI_MODEL", "gemini-2.5-pro-preview-05-06"),
+        contents=prompt,
+        config={
+            "response_mime_type": "application/json",
+            "response_schema": TutorExplanation,
+        }
+    )
+    
+    return response.parsed
+
+
+# --- Test ---
+
+if __name__ == "__main__":
+    import asyncio
+    from dotenv import load_dotenv
+    
+    load_dotenv()
+    
+    async def test_stream():
+        print("🎓 Testing Tutor Agent (Streaming)...\n")
+        
+        context = """
+        Photosynthesis is the process by which plants convert light energy
+        into chemical energy. It occurs in chloroplasts and involves two
+        main stages: the light-dependent reactions and the Calvin cycle.
+        """
+        
+        async for chunk in stream_explanation(
+            topic="Photosynthesis",
+            context=context,
+            difficulty="medium"
+        ):
+            print(chunk, end="", flush=True)
+        
+        print("\n\n✅ Streaming complete!")
+    
+    asyncio.run(test_stream())

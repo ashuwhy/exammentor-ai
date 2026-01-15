@@ -1,103 +1,120 @@
 "use client";
 
-import { useState } from "react";
-import { Calendar, Clock, BookOpen, ChevronRight, Play } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Calendar, Clock, BookOpen, ChevronRight, Play, AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { PlanSkeleton } from "@/components/ui/Skeleton";
 
-// Mock data - in production this comes from API
-const MOCK_PLAN = {
-  exam_name: "NEET 2025",
-  total_days: 7,
-  schedule: [
-    {
-      day_number: 1,
-      focus_topics: ["Cell Biology", "Biomolecules"],
-      estimated_hours: 4,
-      rationale: "Foundation concepts - essential for everything else",
-      color: "from-blue-500 to-cyan-500",
-    },
-    {
-      day_number: 2,
-      focus_topics: ["Genetics", "Molecular Biology"],
-      estimated_hours: 5,
-      rationale: "High-yield topics with strong exam weightage",
-      color: "from-purple-500 to-pink-500",
-    },
-    {
-      day_number: 3,
-      focus_topics: ["Human Physiology - Digestion", "Respiration"],
-      estimated_hours: 4.5,
-      rationale: "Interconnected systems - better learned together",
-      color: "from-green-500 to-emerald-500",
-    },
-    {
-      day_number: 4,
-      focus_topics: ["Circulation", "Excretion"],
-      estimated_hours: 4,
-      rationale: "Completes the physiology module",
-      color: "from-orange-500 to-yellow-500",
-    },
-    {
-      day_number: 5,
-      focus_topics: ["Plant Physiology", "Photosynthesis"],
-      estimated_hours: 4.5,
-      rationale: "Distinct from human systems - fresh perspective needed",
-      color: "from-lime-500 to-green-500",
-    },
-    {
-      day_number: 6,
-      focus_topics: ["Ecology", "Environment"],
-      estimated_hours: 3.5,
-      rationale: "Conceptual and less calculation-heavy - good for day 6",
-      color: "from-teal-500 to-cyan-500",
-    },
-    {
-      day_number: 7,
-      focus_topics: ["Revision & Practice Tests"],
-      estimated_hours: 6,
-      rationale: "Consolidation day - reinforce weak areas",
-      color: "from-red-500 to-pink-500",
-    },
-  ],
-  critical_topics: ["Genetics", "Human Physiology", "Ecology"],
-};
+interface DailyPlan {
+  day_number: number;
+  focus_topics: string[];
+  estimated_hours: number;
+  rationale: string;
+}
+
+interface StudyPlan {
+  exam_name: string;
+  total_days: number;
+  schedule: DailyPlan[];
+  critical_topics: string[];
+}
 
 export default function PlanPage() {
+  const router = useRouter();
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [plan, setPlan] = useState<StudyPlan | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Load plan from localStorage
+    const storedPlan = localStorage.getItem("studyPlan");
+    const examType = localStorage.getItem("examType") || "NEET";
+    
+    if (!storedPlan) {
+      // No plan found, redirect to onboarding
+      router.push("/onboarding");
+      return;
+    }
+
+    try {
+      const planData = JSON.parse(storedPlan);
+      setPlan(planData);
+    } catch (err) {
+      setError("Failed to load study plan");
+      console.error("Plan parsing error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <PlanSkeleton />
+      </div>
+    );
+  }
+
+  if (error || !plan) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="max-w-md w-full card-elevated p-8 text-center">
+          <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-foreground mb-2">Plan Not Found</h2>
+          <p className="text-muted-foreground mb-6">
+            {error || "We couldn't find your study plan. Let's create one!"}
+          </p>
+          <Link
+            href="/onboarding"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-lg font-semibold inline-flex items-center gap-2 transition-all"
+          >
+            Create Study Plan
+            <ChevronRight className="w-5 h-5" />
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
-      <div className="max-w-5xl mx-auto pt-8">
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-5xl mx-auto pt-8 animate-fade-in">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-              <Calendar className="w-8 h-8 text-purple-400" />
+            <h1 className="text-3xl font-semibold text-foreground flex items-center gap-3">
+              <Calendar className="w-8 h-8 text-primary" />
               Your Study Plan
             </h1>
-            <p className="text-slate-400 mt-1">
-              {MOCK_PLAN.exam_name} • {MOCK_PLAN.total_days} days
+            <p className="text-muted-foreground mt-1">
+              {plan.exam_name} • {plan.total_days} days
             </p>
           </div>
-          <Link
-            href="/learn/cell-biology"
-            className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all"
-          >
-            <Play className="w-5 h-5" />
-            Start Learning
-          </Link>
+          {plan.schedule.length > 0 && (
+            <Link
+              href={`/learn/${encodeURIComponent(plan.schedule[0].focus_topics[0].toLowerCase().replace(/\s+/g, "-"))}`}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all shadow-soft-md active:scale-[0.98]"
+            >
+              <Play className="w-5 h-5" />
+              Start Learning
+            </Link>
+          )}
         </div>
 
         {/* Critical Topics Alert */}
-        <div className="bg-amber-500/20 border border-amber-500/50 rounded-xl p-4 mb-8">
-          <p className="text-amber-200 font-medium">
-            🎯 Focus Areas: {MOCK_PLAN.critical_topics.join(", ")}
-          </p>
-        </div>
+        {plan.critical_topics && plan.critical_topics.length > 0 && (
+          <div className="card-soft bg-accent/50 border-accent p-4 mb-8">
+            <p className="text-accent-foreground font-medium">
+              Focus Areas: {plan.critical_topics.join(", ")}
+            </p>
+          </div>
+        )}
 
-        {/* Gantt-style Timeline */}
+        {/* Timeline */}
         <div className="space-y-4">
-          {MOCK_PLAN.schedule.map((day) => (
+          {plan.schedule.map((day, index) => (
             <div
               key={day.day_number}
               onClick={() =>
@@ -105,20 +122,17 @@ export default function PlanPage() {
                   selectedDay === day.day_number ? null : day.day_number
                 )
               }
-              className={`relative bg-slate-800/50 backdrop-blur-lg rounded-xl border transition-all cursor-pointer ${
+              className={`card-elevated p-5 cursor-pointer transition-all hover:shadow-soft-lg animate-slide-up ${
                 selectedDay === day.day_number
-                  ? "border-purple-500 ring-2 ring-purple-500/50"
-                  : "border-slate-700 hover:border-slate-600"
+                  ? "ring-2 ring-primary"
+                  : ""
               }`}
+              style={{ animationDelay: `${index * 50}ms` }}
             >
-              <div className="p-5 flex items-center gap-6">
+              <div className="flex items-center gap-6">
                 {/* Day Number */}
-                <div
-                  className={`w-14 h-14 rounded-xl bg-gradient-to-br ${day.color} flex items-center justify-center flex-shrink-0`}
-                >
-                  <span className="text-white font-bold text-lg">
-                    D{day.day_number}
-                  </span>
+                <div className="w-14 h-14 rounded-lg bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0 font-bold text-lg">
+                  D{day.day_number}
                 </div>
 
                 {/* Topics */}
@@ -127,37 +141,37 @@ export default function PlanPage() {
                     {day.focus_topics.map((topic, i) => (
                       <span
                         key={i}
-                        className="bg-slate-700 text-slate-200 px-3 py-1 rounded-full text-sm font-medium"
+                        className="bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm font-medium"
                       >
                         {topic}
                       </span>
                     ))}
                   </div>
                   {selectedDay === day.day_number && (
-                    <p className="text-slate-400 text-sm mt-2 animate-in fade-in">
+                    <p className="text-muted-foreground text-sm mt-2 animate-fade-in">
                       💡 {day.rationale}
                     </p>
                   )}
                 </div>
 
                 {/* Hours */}
-                <div className="flex items-center gap-2 text-slate-300 flex-shrink-0">
+                <div className="flex items-center gap-2 text-muted-foreground flex-shrink-0">
                   <Clock className="w-4 h-4" />
                   <span className="font-medium">{day.estimated_hours}h</span>
                 </div>
 
-                {/* Progress Bar (Visual width based on hours) */}
+                {/* Progress Bar */}
                 <div className="w-32 flex-shrink-0">
-                  <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
                     <div
-                      className={`h-full bg-gradient-to-r ${day.color} transition-all`}
+                      className="h-full bg-primary transition-all"
                       style={{ width: `${(day.estimated_hours / 6) * 100}%` }}
                     />
                   </div>
                 </div>
 
                 <ChevronRight
-                  className={`w-5 h-5 text-slate-400 transition-transform ${
+                  className={`w-5 h-5 text-muted-foreground transition-transform ${
                     selectedDay === day.day_number ? "rotate-90" : ""
                   }`}
                 />
@@ -167,7 +181,7 @@ export default function PlanPage() {
         </div>
 
         {/* Legend */}
-        <div className="mt-8 flex items-center justify-center gap-8 text-slate-400 text-sm">
+        <div className="mt-8 flex items-center justify-center gap-8 text-muted-foreground text-sm">
           <div className="flex items-center gap-2">
             <BookOpen className="w-4 h-4" />
             <span>Click a day to see rationale</span>

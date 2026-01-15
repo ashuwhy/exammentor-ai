@@ -1,166 +1,253 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   CheckCircle,
   XCircle,
   ArrowRight,
   RotateCcw,
   Trophy,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { generateQuizAction, submitAnswerAction } from "@/app/actions";
+import { QuizSkeleton } from "@/components/ui/Skeleton";
 
-// Mock quiz data
-const MOCK_QUIZ = {
-  topic: "Photosynthesis",
-  questions: [
-    {
-      id: "q1",
-      text: "Where does the light-dependent reaction of photosynthesis occur?",
-      options: [
-        "A) Stroma",
-        "B) Thylakoid membrane",
-        "C) Mitochondria",
-        "D) Cytoplasm",
-      ],
-      correct_option_index: 1,
-      explanation:
-        "The light-dependent reactions occur in the thylakoid membrane where chlorophyll absorbs light energy.",
-      difficulty: "medium",
-    },
-    {
-      id: "q2",
-      text: "What is the primary product of the Calvin Cycle?",
-      options: ["A) Oxygen", "B) ATP", "C) Glucose (G3P)", "D) Water"],
-      correct_option_index: 2,
-      explanation:
-        "The Calvin Cycle produces glyceraldehyde-3-phosphate (G3P), which is used to synthesize glucose.",
-      difficulty: "medium",
-    },
-    {
-      id: "q3",
-      text: "Which wavelengths of light are LEAST absorbed by chlorophyll?",
-      options: ["A) Red", "B) Blue", "C) Green", "D) Violet"],
-      correct_option_index: 2,
-      explanation:
-        "Chlorophyll reflects green light, which is why plants appear green. It absorbs red and blue light most efficiently.",
-      difficulty: "easy",
-    },
-    {
-      id: "q4",
-      text: "What gas is released as a byproduct of the light reactions?",
-      options: [
-        "A) Carbon dioxide",
-        "B) Nitrogen",
-        "C) Oxygen",
-        "D) Hydrogen",
-      ],
-      correct_option_index: 2,
-      explanation:
-        "Oxygen is released when water molecules are split during the light reactions (photolysis).",
-      difficulty: "easy",
-    },
-    {
-      id: "q5",
-      text: 'Why is the Calvin Cycle called the "dark reaction"?',
-      options: [
-        "A) It only occurs at night",
-        "B) It requires darkness",
-        "C) It does not directly require light",
-        "D) It produces dark pigments",
-      ],
-      correct_option_index: 2,
-      explanation:
-        "The Calvin Cycle is called 'dark reaction' because it doesn't directly require light - but it still happens during the day using ATP and NADPH from light reactions.",
-      difficulty: "hard",
-    },
-  ],
-};
+interface Question {
+  id: string;
+  text: string;
+  options: string[];
+  correct_option_index: number;
+  explanation?: string;
+  difficulty: string;
+  concept_tested?: string;
+}
+
+interface Quiz {
+  topic: string;
+  questions: Question[];
+}
 
 export default function QuizPage() {
   const params = useParams();
+  const topicId = params.topicId as string;
+  const topicName = topicId?.replace(/-/g, " ") || "Topic";
+  
+  const [quiz, setQuiz] = useState<Quiz | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
-  const [answers, setAnswers] = useState<(number | null)[]>(
-    new Array(MOCK_QUIZ.questions.length).fill(null)
-  );
+  const [answers, setAnswers] = useState<(number | null)[]>([]);
+  const [evaluations, setEvaluations] = useState<Record<number, {
+    explanation?: string;
+    feedback?: string;
+    is_correct?: boolean;
+  }>>({});
   const [quizComplete, setQuizComplete] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const currentQuestion = MOCK_QUIZ.questions[currentIndex];
+  // Get context from localStorage
+  const getContext = () => {
+    const plan = localStorage.getItem("studyPlan");
+    const examType = localStorage.getItem("examType") || "NEET";
+    return plan ? `Exam: ${examType}. Study plan context available.` : `Exam: ${examType}`;
+  };
+
+  // Load quiz on mount
+  useEffect(() => {
+    const loadQuiz = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const quizData = await generateQuizAction(
+          topicName,
+          getContext(),
+          5, // numQuestions
+          "medium"
+        );
+
+        if (!quizData || !quizData.questions) {
+          throw new Error("Failed to generate quiz");
+        }
+
+        setQuiz(quizData);
+        setAnswers(new Array(quizData.questions.length).fill(null));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load quiz");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadQuiz();
+  }, [topicName]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <QuizSkeleton />
+      </div>
+    );
+  }
+
+  if (error || !quiz) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="max-w-md w-full card-elevated p-8 text-center">
+          <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-foreground mb-2">Quiz Error</h2>
+          <p className="text-muted-foreground mb-6">
+            {error || "Failed to load quiz"}
+          </p>
+          <Link
+            href={`/learn/${topicId}`}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-lg font-semibold inline-flex items-center gap-2 transition-all"
+          >
+            Back to Learning
+            <ArrowRight className="w-5 h-5" />
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const currentQuestion = quiz.questions[currentIndex];
   const isCorrect = selectedOption === currentQuestion.correct_option_index;
+  const evaluation = evaluations[currentIndex];
 
   const handleSelect = (optionIndex: number) => {
     if (showResult) return;
     setSelectedOption(optionIndex);
   };
 
-  const handleSubmit = () => {
-    if (selectedOption === null) return;
-    setShowResult(true);
-    const newAnswers = [...answers];
-    newAnswers[currentIndex] = selectedOption;
-    setAnswers(newAnswers);
+  const handleSubmit = async () => {
+    if (selectedOption === null || submitting) return;
+    
+    setSubmitting(true);
+    
+    try {
+      // Submit answer for evaluation
+      const evaluation = await submitAnswerAction(
+        currentQuestion.id,
+        currentQuestion.text,
+        currentQuestion.options,
+        currentQuestion.correct_option_index,
+        selectedOption,
+        currentQuestion.concept_tested || topicName,
+        getContext()
+      );
+
+      if (evaluation) {
+        setEvaluations((prev) => ({ ...prev, [currentIndex]: evaluation }));
+      }
+
+      // Update answers
+      const newAnswers = [...answers];
+      newAnswers[currentIndex] = selectedOption;
+      setAnswers(newAnswers);
+      setShowResult(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to evaluate answer");
+      // Still show result even if evaluation fails
+      const newAnswers = [...answers];
+      newAnswers[currentIndex] = selectedOption;
+      setAnswers(newAnswers);
+      setShowResult(true);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleNext = () => {
-    if (currentIndex < MOCK_QUIZ.questions.length - 1) {
+    if (!quiz) return;
+    if (currentIndex < quiz.questions.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setSelectedOption(null);
       setShowResult(false);
     } else {
       setQuizComplete(true);
+      // Store answers for results page
+      const answersData = answers.map((a, i) => ({
+        question_id: quiz.questions[i].id,
+        question_text: quiz.questions[i].text,
+        concept_tested: quiz.questions[i].concept_tested || quiz.topic,
+        student_answer: quiz.questions[i].options[a || 0],
+        correct_answer: quiz.questions[i].options[quiz.questions[i].correct_option_index],
+        is_correct: a === quiz.questions[i].correct_option_index,
+      }));
+      localStorage.setItem("lastQuizAnswers", JSON.stringify(answersData));
     }
   };
 
   const handleRetry = () => {
+    if (!quiz) return;
     setCurrentIndex(0);
     setSelectedOption(null);
     setShowResult(false);
-    setAnswers(new Array(MOCK_QUIZ.questions.length).fill(null));
+    setAnswers(new Array(quiz.questions.length).fill(null));
+    setEvaluations({});
     setQuizComplete(false);
   };
 
   const score = answers.filter(
-    (a, i) => a === MOCK_QUIZ.questions[i].correct_option_index
+    (a, i) => a === quiz.questions[i].correct_option_index
   ).length;
-  const percentage = Math.round((score / MOCK_QUIZ.questions.length) * 100);
+  const percentage = Math.round((score / quiz.questions.length) * 100);
 
   if (quizComplete) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-6">
-        <div className="max-w-lg w-full bg-slate-800/50 backdrop-blur-lg rounded-2xl p-8 border border-slate-700 text-center">
+      <div className="min-h-screen bg-background flex items-center justify-center p-6">
+        <div className="max-w-lg w-full card-elevated p-8 text-center animate-scale-in">
           <Trophy
             className={`w-20 h-20 mx-auto mb-6 ${
               percentage >= 80
-                ? "text-yellow-400"
+                ? "text-chart-3"
                 : percentage >= 60
-                ? "text-slate-300"
-                : "text-amber-600"
+                ? "text-muted-foreground"
+                : "text-chart-3"
             }`}
           />
-          <h1 className="text-3xl font-bold text-white mb-2">Quiz Complete!</h1>
-          <p className="text-slate-400 mb-6">{MOCK_QUIZ.topic}</p>
+          <h1 className="text-3xl font-semibold text-foreground mb-2">Quiz Complete!</h1>
+          <p className="text-muted-foreground mb-6">{quiz.topic}</p>
 
-          <div className="text-6xl font-bold text-purple-400 mb-2">
+          <div className="text-6xl font-bold text-primary mb-2">
             {percentage}%
           </div>
-          <p className="text-slate-400 mb-8">
-            {score} of {MOCK_QUIZ.questions.length} correct
+          <p className="text-muted-foreground mb-8">
+            {score} of {quiz.questions.length} correct
           </p>
 
           <div className="flex gap-4">
             <button
               onClick={handleRetry}
-              className="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-all"
+              className="flex-1 bg-secondary hover:bg-secondary/80 text-secondary-foreground py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-all"
             >
               <RotateCcw className="w-5 h-5" />
               Retry
             </button>
             <Link
-              href="/results"
-              className="flex-1 bg-purple-500 hover:bg-purple-600 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-all"
+              href={{
+                pathname: "/results",
+                query: { 
+                  topic: quiz.topic,
+                  score: score,
+                  total: quiz.questions.length,
+                  answers: JSON.stringify(answers.map((a, i) => ({
+                    question_id: quiz.questions[i].id,
+                    question_text: quiz.questions[i].text,
+                    concept_tested: quiz.questions[i].concept_tested || quiz.topic,
+                    student_answer: quiz.questions[i].options[a || 0],
+                    correct_answer: quiz.questions[i].options[quiz.questions[i].correct_option_index],
+                    is_correct: a === quiz.questions[i].correct_option_index,
+                  })))
+                }
+              }}
+              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground py-3 rounded-lg font-medium flex items-center justify-center gap-2 transition-all"
             >
               View Results
               <ArrowRight className="w-5 h-5" />
@@ -172,20 +259,20 @@ export default function QuizPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-6">
-      <div className="max-w-2xl mx-auto pt-8">
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-2xl mx-auto pt-8 animate-fade-in">
         {/* Progress */}
         <div className="flex items-center justify-between mb-8">
-          <span className="text-slate-400">
-            Question {currentIndex + 1} of {MOCK_QUIZ.questions.length}
+          <span className="text-muted-foreground">
+            Question {currentIndex + 1} of {quiz.questions.length}
           </span>
           <span
             className={`px-3 py-1 rounded-full text-sm font-medium ${
               currentQuestion.difficulty === "easy"
-                ? "bg-green-500/20 text-green-400"
+                ? "bg-chart-2/20 text-chart-2"
                 : currentQuestion.difficulty === "medium"
-                ? "bg-yellow-500/20 text-yellow-400"
-                : "bg-red-500/20 text-red-400"
+                ? "bg-chart-3/20 text-chart-3"
+                : "bg-destructive/20 text-destructive"
             }`}
           >
             {currentQuestion.difficulty}
@@ -193,13 +280,13 @@ export default function QuizPage() {
         </div>
 
         {/* Progress Bar */}
-        <div className="h-2 bg-slate-700 rounded-full mb-8 overflow-hidden">
+        <div className="h-2 bg-muted rounded-full mb-8 overflow-hidden">
           <div
-            className="h-full bg-purple-500 transition-all"
+            className="h-full bg-primary transition-all"
             style={{
               width: `${
                 ((currentIndex + (showResult ? 1 : 0)) /
-                  MOCK_QUIZ.questions.length) *
+                  quiz.questions.length) *
                 100
               }%`,
             }}
@@ -207,25 +294,24 @@ export default function QuizPage() {
         </div>
 
         {/* Question Card */}
-        <div className="bg-slate-800/50 backdrop-blur-lg rounded-2xl p-8 border border-slate-700 mb-6">
-          <h2 className="text-xl font-bold text-white mb-6">
+        <div className="card-elevated p-8 mb-6">
+          <h2 className="text-xl font-semibold text-foreground mb-6">
             {currentQuestion.text}
           </h2>
 
           <div className="space-y-3">
             {currentQuestion.options.map((option, i) => {
               let optionClass =
-                "border-slate-600 hover:border-slate-500 bg-slate-700/50";
+                "border-border hover:border-primary/50 bg-background";
 
               if (showResult) {
                 if (i === currentQuestion.correct_option_index) {
-                  optionClass =
-                    "border-green-500 bg-green-500/20 text-green-200";
+                  optionClass = "border-chart-2 bg-chart-2/10 text-chart-2";
                 } else if (i === selectedOption && !isCorrect) {
-                  optionClass = "border-red-500 bg-red-500/20 text-red-200";
+                  optionClass = "border-destructive bg-destructive/10 text-destructive";
                 }
               } else if (selectedOption === i) {
-                optionClass = "border-purple-500 bg-purple-500/20";
+                optionClass = "border-primary bg-accent";
               }
 
               return (
@@ -233,14 +319,14 @@ export default function QuizPage() {
                   key={i}
                   onClick={() => handleSelect(i)}
                   disabled={showResult}
-                  className={`w-full p-4 rounded-xl border-2 text-left transition-all flex items-center justify-between ${optionClass}`}
+                  className={`w-full p-4 rounded-lg border-2 text-left transition-all flex items-center justify-between ${optionClass}`}
                 >
-                  <span className="text-slate-200">{option}</span>
+                  <span className="text-foreground">{option}</span>
                   {showResult && i === currentQuestion.correct_option_index && (
-                    <CheckCircle className="w-5 h-5 text-green-400" />
+                    <CheckCircle className="w-5 h-5 text-chart-2" />
                   )}
                   {showResult && i === selectedOption && !isCorrect && (
-                    <XCircle className="w-5 h-5 text-red-400" />
+                    <XCircle className="w-5 h-5 text-destructive" />
                   )}
                 </button>
               );
@@ -251,24 +337,25 @@ export default function QuizPage() {
         {/* Explanation */}
         {showResult && (
           <div
-            className={`rounded-xl p-5 mb-6 border ${
+            className={`card-soft p-5 mb-6 animate-slide-up ${
               isCorrect
-                ? "bg-green-500/20 border-green-500/50"
-                : "bg-amber-500/20 border-amber-500/50"
-            } animate-in fade-in slide-in-from-bottom-2`}
+                ? "bg-chart-2/10 border-chart-2/30"
+                : "bg-chart-3/10 border-chart-3/30"
+            }`}
           >
             <p
               className={`font-medium mb-2 ${
-                isCorrect ? "text-green-200" : "text-amber-200"
+                isCorrect ? "text-chart-2" : "text-chart-3"
               }`}
             >
               {isCorrect ? "✓ Correct!" : "✗ Not quite right"}
             </p>
-            <p
-              className={isCorrect ? "text-green-200/80" : "text-amber-200/80"}
-            >
-              {currentQuestion.explanation}
+            <p className="text-foreground/80">
+              {evaluation?.explanation || currentQuestion.explanation || "Review this concept carefully."}
             </p>
+            {evaluation?.feedback && (
+              <p className="text-primary text-sm mt-2">💡 {evaluation.feedback}</p>
+            )}
           </div>
         )}
 
@@ -276,21 +363,28 @@ export default function QuizPage() {
         {!showResult ? (
           <button
             onClick={handleSubmit}
-            disabled={selectedOption === null}
-            className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${
-              selectedOption !== null
-                ? "bg-purple-500 hover:bg-purple-600 text-white"
-                : "bg-slate-700 text-slate-500 cursor-not-allowed"
+            disabled={selectedOption === null || submitting}
+            className={`w-full py-4 rounded-lg font-semibold text-lg transition-all flex items-center justify-center gap-2 ${
+              selectedOption !== null && !submitting
+                ? "bg-primary hover:bg-primary/90 text-primary-foreground shadow-soft-md active:scale-[0.98]"
+                : "bg-muted text-muted-foreground cursor-not-allowed"
             }`}
           >
-            Submit Answer
+            {submitting ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Evaluating...
+              </>
+            ) : (
+              "Submit Answer"
+            )}
           </button>
         ) : (
           <button
             onClick={handleNext}
-            className="w-full py-4 rounded-xl font-bold text-lg bg-purple-500 hover:bg-purple-600 text-white flex items-center justify-center gap-2 transition-all"
+            className="w-full py-4 rounded-lg font-semibold text-lg bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-2 transition-all shadow-soft-md active:scale-[0.98]"
           >
-            {currentIndex < MOCK_QUIZ.questions.length - 1
+            {currentIndex < quiz.questions.length - 1
               ? "Next Question"
               : "See Results"}
             <ArrowRight className="w-5 h-5" />
