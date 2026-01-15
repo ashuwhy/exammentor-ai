@@ -92,7 +92,7 @@ export default function PlanPage() {
               {plan.exam_name} • {plan.total_days} days
             </p>
           </div>
-          {plan.schedule.length > 0 && (
+          {plan.schedule?.length > 0 && plan.schedule[0]?.focus_topics?.length > 0 && (
             <Link
               href={`/learn/${encodeURIComponent(plan.schedule[0].focus_topics[0].toLowerCase().replace(/\s+/g, "-"))}`}
               className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all shadow-soft-md active:scale-[0.98]"
@@ -114,9 +114,9 @@ export default function PlanPage() {
 
         {/* Timeline */}
         <div className="space-y-4">
-          {plan.schedule.map((day, index) => (
+          {plan.schedule?.map((day, index) => (
             <div
-              key={day.day_number}
+              key={`${day.day_number || 'day'}-${index}`}
               onClick={() =>
                 setSelectedDay(
                   selectedDay === day.day_number ? null : day.day_number
@@ -138,7 +138,7 @@ export default function PlanPage() {
                 {/* Topics */}
                 <div className="flex-1">
                   <div className="flex flex-wrap gap-2 mb-1">
-                    {day.focus_topics.map((topic, i) => (
+                    {day.focus_topics?.map((topic, i) => (
                       <span
                         key={i}
                         className="bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm font-medium"

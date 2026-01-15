@@ -27,6 +27,7 @@ class DailyPlan(BaseModel):
 
 class StudyPlan(BaseModel):
     exam_name: str
+    total_days: int = Field(description="Total duration of the plan in days")
     overview: str = Field(description="Brief strategy summary for the student")
     schedule: List[DailyPlan]
     critical_topics: List[str] = Field(description="Top 3-5 most important topics to focus on")

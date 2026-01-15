@@ -25,11 +25,19 @@ async function fetchWithRetry(
       const response = await fetch(url, fetchOptions)
       
       if (!response.ok) {
+        let errorMsg = `Server error: ${response.status}`
+        try {
+           const body = await response.text()
+           errorMsg += ` - ${body}`
+        } catch (e) {
+           // ignore body read error
+        }
+
         // Don't retry on 4xx client errors (except 429 rate limit)
         if (response.status >= 400 && response.status < 500 && response.status !== 429) {
-          throw new Error(`Request failed: ${response.status} ${response.statusText}`)
+          throw new Error(`Request failed: ${response.status} ${response.statusText} - ${errorMsg}`)
         }
-        throw new Error(`Server error: ${response.status}`)
+        throw new Error(errorMsg)
       }
       
       return response

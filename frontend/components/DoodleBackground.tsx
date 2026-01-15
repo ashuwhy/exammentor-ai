@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const DOODLES = [
   '/doodles/doodle1.png',
@@ -66,16 +66,15 @@ const generateDoodles = (): DoodlePosition[] => {
 };
 
 export const DoodleBackground = () => {
-  // Use lazy initializer to generate doodles only on client
-  const [doodles] = useState<DoodlePosition[]>(() => {
-    if (typeof window === 'undefined') {
-      return [];
-    }
-    return generateDoodles();
-  });
+  const [doodles, setDoodles] = useState<DoodlePosition[]>([]);
+  const [mounted, setMounted] = useState(false);
 
-  // Don't render anything on server to avoid hydration mismatch
-  if (typeof window === 'undefined' || doodles.length === 0) {
+  useEffect(() => {
+    setMounted(true);
+    setDoodles(generateDoodles());
+  }, []);
+
+  if (!mounted) {
     return null;
   }
 
