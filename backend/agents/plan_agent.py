@@ -33,6 +33,15 @@ class StudyPlan(BaseModel):
     critical_topics: List[str] = Field(description="Top 3-5 most important topics to focus on")
 
 
+class PlanVerification(BaseModel):
+    """Schema for the Plan Verifier's critique."""
+    is_valid: bool = Field(description="True if the plan fulfills all syllabus requirements and constraints")
+    missing_topics: List[str] = Field(description="Topics from the syllabus that were missed")
+    overloaded_days: List[int] = Field(description="Day numbers where the workload exceeds 8 hours")
+    prerequisite_issues: List[str] = Field(description="Topics scheduled before their prerequisites")
+    critique: str = Field(description="Detailed feedback on what needs to be fixed")
+
+
 # --- The Plan Agent ---
 
 async def generate_study_plan(
@@ -41,18 +50,7 @@ async def generate_study_plan(
     goal: str,
     days: int = 7
 ) -> StudyPlan:
-    """
-    Generate a structured study plan using Gemini 3 with guaranteed JSON output.
-    
-    Args:
-        syllabus_text: The extracted text from the syllabus/textbook
-        exam_type: Type of exam (NEET, JEE, UPSC, CAT, etc.)
-        goal: Student's personal goal
-        days: Number of days until the exam
-        
-    Returns:
-        StudyPlan: A validated Pydantic model with the complete plan
-    """
+    """Generate a structured study plan (Legacy/Draft version)."""
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     
     prompt = f"""
@@ -74,17 +72,106 @@ INSTRUCTIONS:
 6. Identify the 3-5 most critical topics that will have the highest impact
 """
 
-    # Call Gemini 3 with Structured Output
     response = await client.aio.models.generate_content(
-        model=os.getenv("GEMINI_MODEL", "gemini-2.5-pro-preview-05-06"),
+        model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp"),
         contents=prompt,
         config={
             "response_mime_type": "application/json",
-            "response_schema": StudyPlan,  # Guarantees valid Pydantic object
+            "response_schema": StudyPlan,
         }
     )
     
-    return response.parsed  # Returns validated Python object, not raw text!
+    return response.parsed
+
+
+async def verify_study_plan(
+    plan: StudyPlan,
+    syllabus_text: str,
+    exam_type: str
+) -> PlanVerification:
+    """Verify the study plan against the syllabus and pedagogical best practices."""
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+    prompt = f"""
+You are an expert Educational Auditor. 
+Verify the following study plan for a {exam_type} exam against the provided syllabus.
+
+STUDY PLAN:
+{plan.model_dump_json()}
+
+SYLLABUS:
+{syllabus_text[:5000]}
+
+CHECKLIST:
+1. COVERAGE: Are all major topics from the syllabus included?
+2. FEASIBILITY: Are any days overloaded (>8 hours)?
+3. SEQUENCING: Are prerequisites scheduled before advanced topics?
+4. STRATEGY: Is there enough time for revision?
+
+Be critical. If anything is wrong, set is_valid to false and provide a detailed critique.
+"""
+
+    response = await client.aio.models.generate_content(
+        model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp"),
+        contents=prompt,
+        config={
+            "response_mime_type": "application/json",
+            "response_schema": PlanVerification,
+        }
+    )
+
+    return response.parsed
+
+
+async def generate_verified_plan(
+    syllabus_text: str,
+    exam_type: str,
+    goal: str,
+    days: int = 7,
+    max_iterations: int = 2
+) -> StudyPlan:
+    """Generate a study plan with self-correction verification loop."""
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    
+    # iteration 1: Draft
+    print(f"🔄 Generating draft plan for {exam_type}...")
+    current_plan = await generate_study_plan(syllabus_text, exam_type, goal, days)
+    
+    for i in range(max_iterations):
+        print(f"🧐 Verifying plan (Iteration {i+1})...")
+        verification = await verify_study_plan(current_plan, syllabus_text, exam_type)
+        
+        if verification.is_valid:
+            print("✅ Plan verified successfully!")
+            return current_plan
+            
+        print(f"❌ Verification failed: {verification.critique}")
+        
+        # fix the plan
+        fix_prompt = f"""
+You are an expert exam strategist. Fix the draft study plan based on the auditor's critique.
+
+FIX CRITIQUE:
+{verification.critique}
+
+ORIGINAL GOAL: {goal}
+SYLLABUS: {syllabus_text[:5000]}
+CURRENT DRAFT: {current_plan.model_dump_json()}
+
+REGENERATE THE FULL STUDY PLAN INCORPORATING ALL FIXES.
+"""
+        response = await client.aio.models.generate_content(
+            model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp"),
+            contents=fix_prompt,
+            config={
+                "response_mime_type": "application/json",
+                "response_schema": StudyPlan,
+            }
+        )
+        current_plan = response.parsed
+        
+    print("⚠️ Max iterations reached. Returning latest version.")
+    return current_plan
 
 
 # --- Sync version for simple use cases ---

@@ -70,6 +70,23 @@ class AnalysisRequest(BaseModel):
     context: str
 
 
+class ImageTutorRequest(BaseModel):
+    topic: str
+    image_base64: str
+    mime_type: str = "image/jpeg"
+
+
+class MisconceptionRequest(BaseModel):
+    question_id: str
+    question_text: str
+    options: List[str]
+    correct_option_index: int
+    student_answer_index: int
+    concept_tested: str
+    topic_context: str
+    session_id: str
+
+
 # --- Health Check ---
 
 @app.get("/health")
@@ -82,11 +99,28 @@ async def health():
 
 @app.post("/api/plan/generate")
 async def generate_plan(request: PlanRequest):
-    """Generate a study plan using the Plan Agent."""
+    """Generate a study plan (Legacy fallback)."""
     from agents.plan_agent import generate_study_plan
     
     try:
         plan = await generate_study_plan(
+            syllabus_text=request.syllabus_text,
+            exam_type=request.exam_type,
+            goal=request.goal,
+            days=request.days
+        )
+        return plan.model_dump()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/plan/generate-verified")
+async def generate_verified_plan_endpoint(request: PlanRequest):
+    """Generate a verified study plan using iterative loops."""
+    from agents.plan_agent import generate_verified_plan
+    
+    try:
+        plan = await generate_verified_plan(
             syllabus_text=request.syllabus_text,
             exam_type=request.exam_type,
             goal=request.goal,
@@ -129,6 +163,24 @@ async def stream_topic_explanation(request: TutorRequest):
             yield chunk
     
     return StreamingResponse(generate(), media_type="text/plain")
+
+
+@app.post("/api/tutor/explain-image")
+async def explain_image_endpoint(request: ImageTutorRequest):
+    """Explain a topic using an uploaded image."""
+    from agents.tutor_agent import explain_image
+    import base64
+    
+    try:
+        image_bytes = base64.b64decode(request.image_base64)
+        explanation = await explain_image(
+            topic=request.topic,
+            image_bytes=image_bytes,
+            mime_type=request.mime_type
+        )
+        return explanation.model_dump()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # --- Quiz Agent Routes ---
@@ -197,6 +249,79 @@ async def analyze_performance_endpoint(request: AnalysisRequest):
             context=request.context
         )
         return analysis.model_dump()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/quiz/misconception")
+async def bust_misconception_endpoint(request: MisconceptionRequest):
+    """Analyze a wrong answer and generate a counter-example + redemption question."""
+    from agents.misconception_agent import analyze_and_bust_misconception
+    from agents.quiz_agent import Question, QuestionType, DifficultyLevel
+    from agents.state_machine import StateMachine, StudentContext
+    
+    try:
+        # Reconstruct question
+        question = Question(
+            id=request.question_id,
+            text=request.question_text,
+            question_type=QuestionType.MULTIPLE_CHOICE,
+            options=request.options,
+            correct_option_index=request.correct_option_index,
+            explanation="",
+            difficulty=DifficultyLevel.MEDIUM,
+            concept_tested=request.concept_tested
+        )
+        
+        analysis = await analyze_and_bust_misconception(
+            question=question,
+            wrong_answer_index=request.student_answer_index,
+            topic_context=request.topic_context
+        )
+        
+        # Log the misconception to persistent state
+        context = StudentContext(user_id="", session_id=request.session_id)
+        sm = StateMachine(context)
+        await sm.log_action("misconception_buster", {
+            "topic": request.concept_tested,
+            "confusion": analysis.inferred_confusion
+        })
+        
+        return analysis.model_dump()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# --- Session Management Routes ---
+
+@app.get("/api/session/{session_id}/state")
+async def get_session_state(session_id: str):
+    """Resume session state from Supabase."""
+    from agents.state_machine import StateMachine, StudentContext
+    
+    try:
+        context = StudentContext(user_id="", session_id=session_id)
+        sm = StateMachine(context)
+        phase = await sm.load_state()
+        
+        return {
+            "phase": phase.value if phase else "INTAKE",
+            "context": sm.context.model_dump()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/session/{session_id}/save")
+async def save_session_state(session_id: str, context_data: dict, phase: str):
+    """Manually save session state."""
+    from agents.state_machine import StateMachine, StudentContext, StudyPhase
+    
+    try:
+        context = StudentContext(**context_data)
+        sm = StateMachine(context)
+        await sm.save_state(StudyPhase(phase))
+        return {"ok": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

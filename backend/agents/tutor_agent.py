@@ -29,6 +29,23 @@ class TutorExplanation(BaseModel):
     practice_question: Optional[str] = Field(default=None, description="Quick check question")
 
 
+class ImageHighlight(BaseModel):
+    """Highlight metadata for visual grounding."""
+    label: str = Field(description="Label for the highlight")
+    region: str = Field(description="Region in the image (e.g., 'top-left', 'center')")
+    description: str = Field(description="Contextual explanation of this specific part")
+
+
+class MultimodalExplanation(BaseModel):
+    """Output for the Multimodal Tutor."""
+    topic: str
+    intuition: str
+    visual_references: List[ImageHighlight] = Field(description="Key parts of the image to highlight")
+    explanation: str = Field(description="The main text explanation referencing the image")
+    deep_dive: List[ExplanationStep]
+    practice_question: str
+
+
 # --- Streaming Explanation Generator ---
 
 async def stream_explanation(
@@ -114,7 +131,7 @@ Create a complete explanation with:
 """
 
     response = await client.aio.models.generate_content(
-        model=os.getenv("GEMINI_MODEL", "gemini-2.5-pro-preview-05-06"),
+        model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp"),
         contents=prompt,
         config={
             "response_mime_type": "application/json",
@@ -122,6 +139,42 @@ Create a complete explanation with:
         }
     )
     
+    return response.parsed
+
+
+async def explain_image(
+    topic: str,
+    image_bytes: bytes,
+    mime_type: str = "image/jpeg"
+) -> MultimodalExplanation:
+    """
+    Explain a concept using a diagram/image with visual grounding.
+    """
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+    prompt = f"""
+You are an expert tutor specializing in visual learning.
+Explain the concept "{topic}" based on this diagram/image.
+
+INSTRUCTIONS:
+1. Provide a high-level intuition.
+2. Identify at least 3 key visual elements (highlights) and explain their significance.
+3. Reference these elements in your step-by-step deep dive.
+4. End with a practice question focused on the visual details.
+"""
+
+    response = await client.aio.models.generate_content(
+        model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp"),
+        contents=[
+            prompt,
+            genai.types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
+        ],
+        config={
+            "response_mime_type": "application/json",
+            "response_schema": MultimodalExplanation,
+        }
+    )
+
     return response.parsed
 
 

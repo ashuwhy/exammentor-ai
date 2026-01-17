@@ -2,6 +2,12 @@
 
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
 
@@ -56,6 +62,46 @@ async function fetchWithRetry(
   throw lastError || new Error('Request failed after retries')
 }
 
+// --- Semantic Caching ---
+
+async function getCachedPlan(cacheKey: string) {
+  try {
+    const { data } = await supabase
+      .from('plan_cache')
+      .select('plan')
+      .eq('cache_key', cacheKey)
+      .gt('expires_at', new Date().toISOString())
+      .single()
+    return data?.plan
+  } catch (error) {
+    return null
+  }
+}
+
+async function saveToCache(cacheKey: string, plan: any) {
+  try {
+    await supabase.from('plan_cache').upsert({
+      cache_key: cacheKey,
+      plan,
+      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+    })
+  } catch (error) {
+    console.error('Cache save error:', error)
+  }
+}
+
+function hashPlanRequest(data: PlanFormData): string {
+  // Simple deterministic hash for demo purposes
+  const str = `${data.examType}-${data.days}-${(data.syllabusText || '').substring(0, 100)}`
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i)
+    hash = ((hash << 5) - hash) + char
+    hash |= 0
+  }
+  return `plan-${Math.abs(hash)}`
+}
+
 // --- Plan Actions ---
 
 export interface PlanFormData {
@@ -67,7 +113,16 @@ export interface PlanFormData {
 
 export async function createPlanAction(data: PlanFormData) {
   try {
-    const res = await fetchWithRetry(`${API_BASE}/api/plan/generate`, {
+    // 1. Check Cache
+    const cacheKey = hashPlanRequest(data)
+    const cached = await getCachedPlan(cacheKey)
+    if (cached) {
+      console.log('🚀 Serving plan from semantic cache')
+      return { success: true, plan: cached, fromCache: true }
+    }
+
+    // 2. Generate Verified Plan
+    const res = await fetchWithRetry(`${API_BASE}/api/plan/generate-verified`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -81,8 +136,8 @@ export async function createPlanAction(data: PlanFormData) {
 
     const plan = await res.json()
     
-    // TODO: Save to Supabase
-    // const { data: saved } = await supabase.from('study_plans').insert(plan)
+    // 3. Save to Cache
+    await saveToCache(cacheKey, plan)
     
     return { success: true, plan }
   } catch (error) {
@@ -199,6 +254,78 @@ export async function analyzePerformanceAction(
   } catch (error) {
     console.error('Analysis error:', error)
     return null
+  }
+}
+
+// --- Multimodal & Misconception Actions ---
+
+export async function explainImageAction(topic: string, base64Image: string, mimeType: string = 'image/jpeg') {
+  try {
+    const res = await fetchWithRetry(`${API_BASE}/api/tutor/explain-image`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        topic,
+        image_base64: base64Image,
+        mime_type: mimeType
+      }),
+      retries: 1,
+    })
+
+    return await res.json()
+  } catch (error) {
+    console.error('Image tutorial error:', error)
+    return null
+  }
+}
+
+export async function bustMisconceptionAction(data: {
+  question_id: string
+  question_text: string
+  options: string[]
+  correct_option_index: number
+  student_answer_index: number
+  concept_tested: string
+  topic_context: string
+  session_id: string
+}) {
+  try {
+    const res = await fetchWithRetry(`${API_BASE}/api/quiz/misconception`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      retries: 1,
+    })
+
+    return await res.json()
+  } catch (error) {
+    console.error('Misconception buster error:', error)
+    return null
+  }
+}
+
+// --- Session Persistence Actions ---
+
+export async function getSessionStateAction(sessionId: string) {
+  try {
+    const res = await fetch(`${API_BASE}/api/session/${sessionId}/state`)
+    if (!res.ok) return null
+    return await res.json()
+  } catch (err) {
+    return null
+  }
+}
+
+export async function saveSessionStateAction(sessionId: string, contextData: any, phase: string) {
+  try {
+    await fetch(`${API_BASE}/api/session/${sessionId}/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ context_data: contextData, phase })
+    })
+    return true
+  } catch (err) {
+    return false
   }
 }
 
