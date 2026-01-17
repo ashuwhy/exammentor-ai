@@ -93,10 +93,12 @@ Use markdown formatting. Be encouraging but accurate.
 """
 
     # Enable streaming for live UI feedback
-    async for chunk in client.aio.models.generate_content_stream(
+    # Enable streaming for live UI feedback
+    response = await client.aio.models.generate_content_stream(
         model=os.getenv("GEMINI_MODEL", "gemini-2.5-pro-preview-05-06"),
         contents=prompt
-    ):
+    )
+    async for chunk in response:
         if chunk.text:
             yield chunk.text
 
@@ -131,7 +133,7 @@ Create a complete explanation with:
 """
 
     response = await client.aio.models.generate_content(
-        model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp"),
+        model=os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
         contents=prompt,
         config={
             "response_mime_type": "application/json",
@@ -164,7 +166,7 @@ INSTRUCTIONS:
 """
 
     response = await client.aio.models.generate_content(
-        model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp"),
+        model=os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
         contents=[
             prompt,
             genai.types.Part.from_bytes(data=image_bytes, mime_type=mime_type)

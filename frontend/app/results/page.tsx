@@ -1,20 +1,23 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { HugeiconsIcon } from "@hugeicons/react";
 import {
-  BarChart3,
+  BarChart,
   TrendingUp,
   Target,
   AlertTriangle,
-  CheckCircle,
-  BookOpen,
+  CheckmarkCircle02Icon,
+  Book02Icon,
   ArrowRight,
-  Loader2,
-} from "lucide-react";
+  Flame,
+  Lightbulb,
+} from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { analyzePerformanceAction } from "@/app/actions";
 import { ResultsSkeleton } from "@/components/ui/Skeleton";
+import { Button } from "@/components/ui/button";
 
 interface Misconception {
   topic: string;
@@ -60,7 +63,14 @@ export default function ResultsPage() {
         const score = parseInt(searchParams.get("score") || "0");
         const total = parseInt(searchParams.get("total") || "0");
 
-        let quizAnswers: any[] = [];
+        let quizAnswers: Array<{
+          question_id: string;
+          question_text: string;
+          concept_tested: string;
+          student_answer: string;
+          correct_answer: string;
+          is_correct: boolean;
+        }> = [];
         
         if (answersParam) {
           quizAnswers = JSON.parse(decodeURIComponent(answersParam));
@@ -139,16 +149,19 @@ export default function ResultsPage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <div className="max-w-md w-full card-elevated p-8 text-center">
-          <AlertTriangle className="w-12 h-12 text-destructive mx-auto mb-4" />
+          <HugeiconsIcon icon={AlertTriangle} size={48} color="currentColor" strokeWidth={1.5} className="w-12 h-12 text-destructive mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-foreground mb-2">Analysis Error</h2>
           <p className="text-muted-foreground mb-6">{error}</p>
-          <Link
-            href="/plan"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-lg font-semibold inline-flex items-center gap-2 transition-all"
+          <Button
+            asChild
+            variant="premium"
+            className="mt-6"
           >
-            Back to Plan
-            <ArrowRight className="w-5 h-5" />
-          </Link>
+            <Link href="/plan">
+              Back to Plan
+              <HugeiconsIcon icon={ArrowRight} size={24} color="currentColor" strokeWidth={1.5} className="w-6 h-6" />
+            </Link>
+          </Button>
         </div>
       </div>
     );
@@ -163,49 +176,52 @@ export default function ResultsPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-semibold text-foreground flex items-center gap-3">
-              <BarChart3 className="w-8 h-8 text-primary" />
+              <HugeiconsIcon icon={BarChart} size={40} color="currentColor" strokeWidth={1.5} className="w-10 h-10 text-primary" />
               Your Progress
             </h1>
             <p className="text-muted-foreground mt-1">
               {localStorage.getItem("examType")?.toUpperCase() || "NEET"} 2025
             </p>
           </div>
-          <Link
-            href="/plan"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all shadow-soft-md active:scale-[0.98]"
+          <Button
+            asChild
+            variant="premium"
+            size="lg"
           >
-            Continue Learning
-            <ArrowRight className="w-5 h-5" />
-          </Link>
+            <Link href="/plan">
+              Continue Learning
+              <HugeiconsIcon icon={ArrowRight} size={24} color="currentColor" strokeWidth={1.5} className="w-6 h-6" />
+            </Link>
+          </Button>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           <div className="card-elevated p-5">
-            <TrendingUp className="w-6 h-6 text-chart-2 mb-2" />
+            <HugeiconsIcon icon={TrendingUp} size={32} color="currentColor" strokeWidth={1.5} className="w-8 h-8 text-chart-2 mb-2" />
             <p className="text-3xl font-bold text-foreground">
               {stats.overall_score}%
             </p>
             <p className="text-muted-foreground text-sm">Overall Score</p>
           </div>
           <div className="card-elevated p-5">
-            <Target className="w-6 h-6 text-primary mb-2" />
+            <HugeiconsIcon icon={Target} size={32} color="currentColor" strokeWidth={1.5} className="w-8 h-8 text-primary mb-2" />
             <p className="text-3xl font-bold text-foreground">
               {stats.topics_mastered}/{stats.topics_total}
             </p>
             <p className="text-muted-foreground text-sm">Topics Mastered</p>
           </div>
           <div className="card-elevated p-5">
-            <BookOpen className="w-6 h-6 text-chart-1 mb-2" />
+            <HugeiconsIcon icon={Book02Icon} size={32} color="currentColor" strokeWidth={1.5} className="w-8 h-8 text-chart-1 mb-2" />
             <p className="text-3xl font-bold text-foreground">
               {stats.study_hours}h
             </p>
             <p className="text-muted-foreground text-sm">Study Time</p>
           </div>
           <div className="card-elevated p-5">
-            <CheckCircle className="w-6 h-6 text-chart-3 mb-2" />
-            <p className="text-3xl font-bold text-foreground">
-              {stats.streak_days} 🔥
+            <HugeiconsIcon icon={CheckmarkCircle02Icon} size={32} color="currentColor" strokeWidth={1.5} className="w-8 h-8 text-chart-3 mb-2" />
+            <p className="text-3xl font-bold text-foreground flex items-center gap-2">
+              {stats.streak_days} <HugeiconsIcon icon={Flame} size={32} color="currentColor" strokeWidth={1.5} className="w-8 h-8 text-orange-500 fill-orange-500" />
             </p>
             <p className="text-muted-foreground text-sm">Day Streak</p>
           </div>
@@ -264,7 +280,7 @@ export default function ResultsPage() {
           {/* Misconceptions */}
           <div className="card-elevated p-6">
             <h2 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-chart-3" />
+              <HugeiconsIcon icon={AlertTriangle} size={28} color="currentColor" strokeWidth={1.5} className="w-7 h-7 text-chart-3" />
               Areas to Improve
             </h2>
             <div className="space-y-4">
@@ -272,12 +288,15 @@ export default function ResultsPage() {
                 misconceptions.map((m, i) => (
                 <div
                   key={i}
-                  className="card-soft bg-chart-3/10 border-chart-3/30 p-4 animate-slide-up"
+                  className="card-soft bg-chart-3/10 border-chart-3/30 p-4 animate-slide-up backdrop-blur-lg"
                   style={{ animationDelay: `${i * 100}ms` }}
                 >
                   <p className="text-foreground font-medium mb-1">{m.topic}</p>
                   <p className="text-muted-foreground text-sm mb-2">{m.issue}</p>
-                  <p className="text-primary text-sm">💡 {m.advice}</p>
+                  <p className="text-primary text-sm flex items-start gap-2">
+                    <HugeiconsIcon icon={Lightbulb} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <span>{m.advice}</span>
+                  </p>
                 </div>
 
 ))

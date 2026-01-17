@@ -7,7 +7,7 @@ Uses Pydantic models to guarantee valid JSON output from the LLM.
 import os
 from google import genai
 from pydantic import BaseModel, Field
-from typing import List
+from typing import List, Optional
 
 
 # --- Strict Output Schemas (Gemini 3 Structured Outputs) ---
@@ -73,7 +73,7 @@ INSTRUCTIONS:
 """
 
     response = await client.aio.models.generate_content(
-        model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp"),
+        model=os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
         contents=prompt,
         config={
             "response_mime_type": "application/json",
@@ -112,7 +112,7 @@ Be critical. If anything is wrong, set is_valid to false and provide a detailed 
 """
 
     response = await client.aio.models.generate_content(
-        model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp"),
+        model=os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
         contents=prompt,
         config={
             "response_mime_type": "application/json",
@@ -123,6 +123,23 @@ Be critical. If anything is wrong, set is_valid to false and provide a detailed 
     return response.parsed
 
 
+class PlanVersion(BaseModel):
+    """A single version of the plan during the self-correction loop."""
+    version: int
+    plan: StudyPlan
+    verification: Optional[PlanVerification] = None
+    was_accepted: bool = False
+
+
+class PlanWithHistory(BaseModel):
+    """Extended plan with full self-correction history for the diff UI."""
+    final_plan: StudyPlan
+    versions: List[PlanVersion] = Field(description="All versions during self-correction")
+    total_iterations: int
+    self_correction_applied: bool = Field(description="True if plan was modified from v1")
+    verification_summary: dict = Field(description="Final verification metrics")
+
+
 async def generate_verified_plan(
     syllabus_text: str,
     exam_type: str,
@@ -130,38 +147,85 @@ async def generate_verified_plan(
     days: int = 7,
     max_iterations: int = 2
 ) -> StudyPlan:
-    """Generate a study plan with self-correction verification loop."""
+    """Generate a study plan with self-correction verification loop.
+    
+    Note: Use generate_verified_plan_with_history for the full diff data.
+    """
+    result = await generate_verified_plan_with_history(
+        syllabus_text, exam_type, goal, days, max_iterations
+    )
+    return result.final_plan
+
+
+async def generate_verified_plan_with_history(
+    syllabus_text: str,
+    exam_type: str,
+    goal: str,
+    days: int = 7,
+    max_iterations: int = 2
+) -> PlanWithHistory:
+    """
+    Generate a study plan with self-correction verification loop.
+    
+    Returns full version history for the self-correction diff UI.
+    This is the key "Action Era" feature that shows judges how the AI
+    identifies problems and fixes them autonomously.
+    """
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     
-    # iteration 1: Draft
+    versions: List[PlanVersion] = []
+    
+    # Iteration 1: Draft
     print(f"🔄 Generating draft plan for {exam_type}...")
     current_plan = await generate_study_plan(syllabus_text, exam_type, goal, days)
+    
+    # Store v1
+    versions.append(PlanVersion(
+        version=1,
+        plan=current_plan,
+        verification=None,
+        was_accepted=False
+    ))
+    
+    final_verification = None
     
     for i in range(max_iterations):
         print(f"🧐 Verifying plan (Iteration {i+1})...")
         verification = await verify_study_plan(current_plan, syllabus_text, exam_type)
         
+        # Update the last version with its verification
+        versions[-1].verification = verification
+        
         if verification.is_valid:
             print("✅ Plan verified successfully!")
-            return current_plan
+            versions[-1].was_accepted = True
+            final_verification = verification
+            break
             
         print(f"❌ Verification failed: {verification.critique}")
+        final_verification = verification
         
-        # fix the plan
+        # Fix the plan (self-correction)
         fix_prompt = f"""
 You are an expert exam strategist. Fix the draft study plan based on the auditor's critique.
 
 FIX CRITIQUE:
 {verification.critique}
 
+ISSUES TO FIX:
+- Missing topics: {verification.missing_topics}
+- Overloaded days: {verification.overloaded_days}
+- Prerequisite issues: {verification.prerequisite_issues}
+
 ORIGINAL GOAL: {goal}
 SYLLABUS: {syllabus_text[:5000]}
 CURRENT DRAFT: {current_plan.model_dump_json()}
 
 REGENERATE THE FULL STUDY PLAN INCORPORATING ALL FIXES.
+Do NOT skip any topics. Ensure all days have <= 8 hours.
 """
         response = await client.aio.models.generate_content(
-            model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp"),
+            model=os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
             contents=fix_prompt,
             config={
                 "response_mime_type": "application/json",
@@ -170,8 +234,181 @@ REGENERATE THE FULL STUDY PLAN INCORPORATING ALL FIXES.
         )
         current_plan = response.parsed
         
-    print("⚠️ Max iterations reached. Returning latest version.")
-    return current_plan
+        # Store the new version
+        versions.append(PlanVersion(
+            version=i + 2,  # v2, v3, etc.
+            plan=current_plan,
+            verification=None,
+            was_accepted=False
+        ))
+    
+    # If we exited without finding a valid plan, mark the last as accepted anyway
+    if not any(v.was_accepted for v in versions):
+        versions[-1].was_accepted = True
+        print("⚠️ Max iterations reached. Returning latest version.")
+    
+    # Calculate verification summary
+    verification_summary = {
+        "coverage_percent": 100 - (len(final_verification.missing_topics) * 5) if final_verification else 100,
+        "overloaded_days_count": len(final_verification.overloaded_days) if final_verification else 0,
+        "prerequisite_issues_count": len(final_verification.prerequisite_issues) if final_verification else 0,
+        "is_valid": final_verification.is_valid if final_verification else True,
+        "iterations_used": len(versions),
+    }
+    
+    return PlanWithHistory(
+        final_plan=current_plan,
+        versions=versions,
+        total_iterations=len(versions),
+        self_correction_applied=len(versions) > 1,
+        verification_summary=verification_summary
+    )
+
+
+async def stream_verified_plan_with_history(
+    syllabus_text: str,
+    exam_type: str,
+    goal: str,
+    days: int = 7,
+    max_iterations: int = 2
+) -> AsyncGenerator[str, None]:
+    """
+    Stream the plan generation process with self-correction events.
+    Yields JSON string chunks.
+    """
+    import json
+    from typing import AsyncGenerator
+    
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    
+    versions: List[PlanVersion] = []
+    
+    # 1. Draft Phase
+    yield json.dumps({"type": "status", "message": f"Drafting initial plan for {exam_type}..."}) + "\n"
+    print(f"🔄 Generating draft plan for {exam_type}...")
+    
+    current_plan = await generate_study_plan(syllabus_text, exam_type, goal, days)
+    
+    versions.append(PlanVersion(
+        version=1,
+        plan=current_plan,
+        verification=None,
+        was_accepted=False
+    ))
+    
+    yield json.dumps({
+        "type": "draft", 
+        "version": 1, 
+        "plan": current_plan.model_dump()
+    }) + "\n"
+    
+    final_verification = None
+    
+    # 2. Verification Loop
+    for i in range(max_iterations):
+        yield json.dumps({
+            "type": "status", 
+            "message": f"Verifying plan (Iteration {i+1})..."
+        }) + "\n"
+        print(f"🧐 Verifying plan (Iteration {i+1})...")
+        
+        verification = await verify_study_plan(current_plan, syllabus_text, exam_type)
+        versions[-1].verification = verification
+        
+        yield json.dumps({
+            "type": "verification", 
+            "version": i + 1, 
+            "result": verification.model_dump()
+        }) + "\n"
+        
+        if verification.is_valid:
+            print("✅ Plan verified successfully!")
+            versions[-1].was_accepted = True
+            final_verification = verification
+            yield json.dumps({
+                "type": "status",
+                "message": "Plan verified successfully!"
+            }) + "\n"
+            break
+            
+        print(f"❌ Verification failed: {verification.critique}")
+        final_verification = verification
+        
+        # 3. Fixing Phase
+        yield json.dumps({
+            "type": "status",
+            "message": f"Fixing issues found in v{i+1}..."
+        }) + "\n"
+        
+        # Fix the plan (self-correction)
+        fix_prompt = f"""
+You are an expert exam strategist. Fix the draft study plan based on the auditor's critique.
+
+FIX CRITIQUE:
+{verification.critique}
+
+ISSUES TO FIX:
+- Missing topics: {verification.missing_topics}
+- Overloaded days: {verification.overloaded_days}
+- Prerequisite issues: {verification.prerequisite_issues}
+
+ORIGINAL GOAL: {goal}
+SYLLABUS: {syllabus_text[:5000]}
+CURRENT DRAFT: {current_plan.model_dump_json()}
+
+REGENERATE THE FULL STUDY PLAN INCORPORATING ALL FIXES.
+Do NOT skip any topics. Ensure all days have <= 8 hours.
+"""
+        response = await client.aio.models.generate_content(
+            model=os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
+            contents=fix_prompt,
+            config={
+                "response_mime_type": "application/json",
+                "response_schema": StudyPlan,
+            }
+        )
+        current_plan = response.parsed
+        
+        versions.append(PlanVersion(
+            version=i + 2,
+            plan=current_plan,
+            verification=None,
+            was_accepted=False
+        ))
+        
+        yield json.dumps({
+            "type": "draft", 
+            "version": i + 2, 
+            "plan": current_plan.model_dump()
+        }) + "\n"
+        
+    # If we exited without finding a valid plan, mark the last as accepted anyway
+    if not any(v.was_accepted for v in versions):
+        versions[-1].was_accepted = True
+        print("⚠️ Max iterations reached. Returning latest version.")
+
+    # Calculate verification summary
+    verification_summary = {
+        "coverage_percent": 100 - (len(final_verification.missing_topics) * 5) if final_verification else 100,
+        "overloaded_days_count": len(final_verification.overloaded_days) if final_verification else 0,
+        "prerequisite_issues_count": len(final_verification.prerequisite_issues) if final_verification else 0,
+        "is_valid": final_verification.is_valid if final_verification else True,
+        "iterations_used": len(versions),
+    }
+
+    final_result = PlanWithHistory(
+        final_plan=current_plan,
+        versions=versions,
+        total_iterations=len(versions),
+        self_correction_applied=len(versions) > 1,
+        verification_summary=verification_summary
+    )
+    
+    yield json.dumps({
+        "type": "complete",
+        "final_result": final_result.model_dump()
+    }) + "\n"
+
 
 
 # --- Sync version for simple use cases ---

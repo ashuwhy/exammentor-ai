@@ -1,21 +1,31 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Calendar, Clock, BookOpen, ChevronRight, Play, AlertCircle, Loader2 } from "lucide-react";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { Clock01Icon, ChevronRight, Play, AlertCircle, Sparkles } from "@hugeicons/core-free-icons";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PlanSkeleton } from "@/components/ui/Skeleton";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/Card";
+
+interface Topic {
+  name: string;
+  difficulty: "easy" | "medium" | "hard";
+  rationale: string;
+}
 
 interface DailyPlan {
-  day_number: number;
-  focus_topics: string[];
+  day: number;
+  theme: string;
+  topics: Topic[];
   estimated_hours: number;
-  rationale: string;
 }
 
 interface StudyPlan {
   exam_name: string;
   total_days: number;
+  overview: string;
   schedule: DailyPlan[];
   critical_topics: string[];
 }
@@ -30,7 +40,6 @@ export default function PlanPage() {
   useEffect(() => {
     // Load plan from localStorage
     const storedPlan = localStorage.getItem("studyPlan");
-    const examType = localStorage.getItem("examType") || "NEET";
     
     if (!storedPlan) {
       // No plan found, redirect to onboarding
@@ -60,136 +69,183 @@ export default function PlanPage() {
   if (error || !plan) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <div className="max-w-md w-full card-elevated p-8 text-center">
-          <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
+        <Card variant="elevated" className="max-w-md w-full p-8 text-center">
+          <HugeiconsIcon icon={AlertCircle} size={48} color="currentColor" strokeWidth={1.5} className="w-12 h-12 text-destructive mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-foreground mb-2">Plan Not Found</h2>
           <p className="text-muted-foreground mb-6">
             {error || "We couldn't find your study plan. Let's create one!"}
           </p>
-          <Link
-            href="/onboarding"
-            className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-lg font-semibold inline-flex items-center gap-2 transition-all"
+          <Button
+            asChild
+            variant="premium"
+            className="mt-6"
           >
-            Create Study Plan
-            <ChevronRight className="w-5 h-5" />
-          </Link>
-        </div>
+            <Link href="/onboarding">
+              Create Study Plan
+              <HugeiconsIcon icon={ChevronRight} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5" />
+            </Link>
+          </Button>
+        </Card>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background p-6">
-      <div className="max-w-5xl mx-auto pt-8 animate-fade-in">
+      <div className="max-w-4xl mx-auto pt-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-start justify-between mb-12 animate-fade-in">
           <div>
-            <h1 className="text-3xl font-semibold text-foreground flex items-center gap-3">
-              <Calendar className="w-8 h-8 text-primary" />
-              Your Study Plan
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-primary/10 text-primary text-xs font-medium mb-3 backdrop-blur-lg">
+              <HugeiconsIcon icon={Sparkles} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5" />
+              AI Generated Plan
+            </div>
+            <h1 className="text-4xl font-bold text-foreground flex items-center gap-3 mb-2">
+              {plan.exam_name}
             </h1>
-            <p className="text-muted-foreground mt-1">
-              {plan.exam_name} • {plan.total_days} days
+            <p className="text-muted-foreground max-w-xl text-lg leading-relaxed">
+              {plan.overview}
             </p>
           </div>
-          {plan.schedule?.length > 0 && plan.schedule[0]?.focus_topics?.length > 0 && (
-            <Link
-              href={`/learn/${encodeURIComponent(plan.schedule[0].focus_topics[0].toLowerCase().replace(/\s+/g, "-"))}`}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-all shadow-soft-md active:scale-[0.98]"
+          {plan.schedule?.length > 0 && plan.schedule[0]?.topics?.length > 0 && (
+            <Button
+              asChild
+              variant="premium"
+              size="lg"
+              className="mt-2"
             >
-              <Play className="w-5 h-5" />
-              Start Learning
-            </Link>
+              <Link href={`/learn/${encodeURIComponent(plan.schedule[0].topics[0].name.toLowerCase().replace(/\s+/g, "-"))}`}>
+                <HugeiconsIcon icon={Play} size={24} color="currentColor" strokeWidth={1.5} className="w-6 h-6 fill-current mr-2" />
+                Start Day 1
+              </Link>
+            </Button>
           )}
         </div>
 
         {/* Critical Topics Alert */}
         {plan.critical_topics && plan.critical_topics.length > 0 && (
-          <div className="card-soft bg-accent/50 border-accent p-4 mb-8">
-            <p className="text-accent-foreground font-medium">
-              Focus Areas: {plan.critical_topics.join(", ")}
-            </p>
+          <div className="mb-10 animate-fade-in" style={{ animationDelay: '100ms' }}>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4 flex items-center gap-2">
+              <HugeiconsIcon icon={AlertCircle} size={16} color="currentColor" strokeWidth={2} />
+              Critical Focus Areas
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {plan.critical_topics.map((topic, i) => (
+                <div key={i} className="bg-chart-5/10 text-chart-5 border border-chart-5/20 px-4 py-2 rounded-lg text-sm font-medium backdrop-blur-lg">
+                  {topic}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
         {/* Timeline */}
-        <div className="space-y-4">
+        <div className="space-y-6 relative">
+          {/* Vertical line connecting days */}
+          <div className="absolute left-[27px] top-8 bottom-8 w-0.5 bg-border/50 z-0" />
+          
           {plan.schedule?.map((day, index) => (
             <div
-              key={`${day.day_number || 'day'}-${index}`}
-              onClick={() =>
-                setSelectedDay(
-                  selectedDay === day.day_number ? null : day.day_number
-                )
-              }
-              className={`card-elevated p-5 cursor-pointer transition-all hover:shadow-soft-lg animate-slide-up ${
-                selectedDay === day.day_number
-                  ? "ring-2 ring-primary"
-                  : ""
-              }`}
-              style={{ animationDelay: `${index * 50}ms` }}
+              key={day.day}
+              className="relative z-10 animate-slide-up"
+              style={{ animationDelay: `${index * 100}ms` }}
             >
-              <div className="flex items-center gap-6">
-                {/* Day Number */}
-                <div className="w-14 h-14 rounded-lg bg-primary text-primary-foreground flex items-center justify-center flex-shrink-0 font-bold text-lg">
-                  D{day.day_number}
-                </div>
+              <Card 
+                variant="glass" 
+                className={`transition-premium ${selectedDay === day.day ? 'ring-1 ring-primary/50 bg-card/40' : ''}`}
+              >
+                <div 
+                  className="p-6 cursor-pointer"
+                  onClick={() => setSelectedDay(selectedDay === day.day ? null : day.day)}
+                >
+                  <div className="flex items-start gap-6">
+                    {/* Day Number Badge */}
+                    <div className={`w-14 h-14 rounded-lg flex items-center justify-center flex-shrink-0 font-bold text-xl shadow-lg transition-premium ${
+                      selectedDay === day.day 
+                        ? 'bg-primary text-primary-foreground scale-105' 
+                        : 'bg-card text-foreground border border-border'
+                    }`}>
+                      <div className="text-center leading-none">
+                        <span className="text-xs opacity-70 font-medium block mb-0.5">DAY</span>
+                        {day.day}
+                      </div>
+                    </div>
 
-                {/* Topics */}
-                <div className="flex-1">
-                  <div className="flex flex-wrap gap-2 mb-1">
-                    {day.focus_topics?.map((topic, i) => (
-                      <span
-                        key={i}
-                        className="bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm font-medium"
-                      >
-                        {topic}
-                      </span>
-                    ))}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-xl font-semibold text-foreground truncate pr-4">
+                          {day.theme}
+                        </h3>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground flex-shrink-0">
+                          <div className="flex items-center gap-1.5">
+                            <HugeiconsIcon icon={Clock01Icon} size={16} color="currentColor" strokeWidth={2} />
+                            <span>{day.estimated_hours}h</span>
+                          </div>
+                          <HugeiconsIcon 
+                            icon={ChevronRight} 
+                            size={20} 
+                            color="currentColor" 
+                            strokeWidth={2} 
+                            className={`transition-premium ${selectedDay === day.day ? 'rotate-90 text-primary' : ''}`} 
+                          />
+                        </div>
+                      </div>
+
+                      {/* Topic Pills Preview */}
+                      <div className="flex flex-wrap gap-2">
+                        {day.topics.slice(0, 3).map((topic, i) => (
+                          <span
+                            key={i}
+                            className="bg-secondary/50 text-secondary-foreground border border-secondary px-2.5 py-0.5 rounded-lg text-xs font-medium"
+                          >
+                            {topic.name}
+                          </span>
+                        ))}
+                        {day.topics.length > 3 && (
+                          <span className="text-xs text-muted-foreground py-0.5 px-1">
+                            +{day.topics.length - 3} more
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Expanded Content */}
+                      <div className={`grid transition-premium ${
+                        selectedDay === day.day ? 'grid-rows-[1fr] opacity-100 mt-6' : 'grid-rows-[0fr] opacity-0'
+                      }`}>
+                        <div className="overflow-hidden">
+                          <div className="border-t border-border/50 pt-4 space-y-3">
+                            {day.topics.map((topic, i) => (
+                              <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-background/50 border border-border/50 transition-premium group">
+                                <div className={`mt-0.5 w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                                  topic.difficulty === 'hard' ? 'bg-destructive' : 
+                                  topic.difficulty === 'medium' ? 'bg-orange-400' : 'bg-green-400'
+                                }`} />
+                                <div className="flex-1">
+                                  <Link 
+                                    href={`/learn/${encodeURIComponent(topic.name.toLowerCase().replace(/\s+/g, "-"))}`}
+                                    className="text-sm font-medium text-foreground transition-colors flex items-center gap-2"
+                                  >
+                                    {topic.name}
+                                    <HugeiconsIcon icon={ChevronRight} size={14} color="currentColor" strokeWidth={2} className="opacity-0 transition-opacity" />
+                                  </Link>
+                                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                                    {topic.rationale}
+                                  </p>
+                                </div>
+                                <div className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                  {topic.difficulty}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  {selectedDay === day.day_number && (
-                    <p className="text-muted-foreground text-sm mt-2 animate-fade-in">
-                      💡 {day.rationale}
-                    </p>
-                  )}
                 </div>
-
-                {/* Hours */}
-                <div className="flex items-center gap-2 text-muted-foreground flex-shrink-0">
-                  <Clock className="w-4 h-4" />
-                  <span className="font-medium">{day.estimated_hours}h</span>
-                </div>
-
-                {/* Progress Bar */}
-                <div className="w-32 flex-shrink-0">
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary transition-all"
-                      style={{ width: `${(day.estimated_hours / 6) * 100}%` }}
-                    />
-                  </div>
-                </div>
-
-                <ChevronRight
-                  className={`w-5 h-5 text-muted-foreground transition-transform ${
-                    selectedDay === day.day_number ? "rotate-90" : ""
-                  }`}
-                />
-              </div>
+              </Card>
             </div>
           ))}
-        </div>
-
-        {/* Legend */}
-        <div className="mt-8 flex items-center justify-center gap-8 text-muted-foreground text-sm">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-4 h-4" />
-            <span>Click a day to see rationale</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4" />
-            <span>Hours indicate estimated study time</span>
-          </div>
         </div>
       </div>
     </div>

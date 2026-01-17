@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Sparkles } from 'lucide-react'
+import { HugeiconsIcon } from '@hugeicons/react'
+import { Sparkles } from '@hugeicons/core-free-icons'
+import { formatMarkdown } from '@/lib/markdown'
 
 interface TutorStreamProps {
   topic: string
@@ -78,7 +80,7 @@ export function TutorStream({
 
   if (error) {
     return (
-      <div className="card-soft bg-destructive/10 border-destructive/30 p-4">
+      <div className="card-soft bg-destructive/10 border-destructive/30 p-4 backdrop-blur-lg">
         <p className="text-destructive">Error: {error}</p>
       </div>
     )
@@ -88,19 +90,19 @@ export function TutorStream({
     <div className="space-y-4">
       {isStreaming && (
         <div className="flex items-center gap-2 text-primary">
-          <Sparkles className="w-4 h-4 animate-pulse" />
+          <HugeiconsIcon icon={Sparkles} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4 animate-pulse" />
           <span className="text-sm">AI is thinking...</span>
         </div>
       )}
       
       <div 
         ref={containerRef}
-        className="prose prose-invert max-w-none overflow-y-auto"
+        className="max-w-none overflow-y-auto"
         style={{ maxHeight: 'calc(100vh - 200px)' }}
       >
         {content ? (
           <div 
-            className="whitespace-pre-wrap text-foreground/90"
+            className="text-foreground/90 markdown-content"
             dangerouslySetInnerHTML={{ 
               __html: formatMarkdown(content) 
             }} 
@@ -113,25 +115,4 @@ export function TutorStream({
       </div>
     </div>
   )
-}
-
-// Simple markdown formatter
-function formatMarkdown(text: string): string {
-  return text
-    // Bold
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    // Italic
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    // Headers
-    .replace(/^### (.*$)/gm, '<h3 class="text-lg font-semibold mt-4 mb-2">$1</h3>')
-    .replace(/^## (.*$)/gm, '<h2 class="text-xl font-semibold mt-6 mb-3">$1</h2>')
-    .replace(/^# (.*$)/gm, '<h1 class="text-2xl font-bold mt-6 mb-4">$1</h1>')
-    // Bullet points
-    .replace(/^- (.*$)/gm, '<li class="ml-4">$1</li>')
-    .replace(/^(\d+)\. (.*$)/gm, '<li class="ml-4"><span class="font-medium">$1.</span> $2</li>')
-    // Code
-    .replace(/`(.*?)`/g, '<code class="bg-muted px-1 py-0.5 rounded text-sm">$1</code>')
-    // Line breaks
-    .replace(/\n\n/g, '</p><p class="mb-4">')
-    .replace(/\n/g, '<br />')
 }

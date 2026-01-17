@@ -52,7 +52,7 @@ Use the response schema for structured output.
 """
 
     response = await client.aio.models.generate_content(
-        model=os.getenv("GEMINI_MODEL", "gemini-2.0-flash-exp"),
+        model=os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
         contents=prompt,
         config={
             "response_mime_type": "application/json",

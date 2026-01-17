@@ -57,7 +57,7 @@ const generateDoodles = (): DoodlePosition[] => {
         left: baseX + jitterX,
         rotation: Math.random() * 360,
         scale: 0.8 + Math.random() * 0.4,
-        opacity: 0.3 + Math.random() * 1,
+        opacity: 0.1 + Math.random() * 0.2,
       });
     }
   }

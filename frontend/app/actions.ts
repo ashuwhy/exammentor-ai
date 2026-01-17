@@ -146,6 +146,40 @@ export async function createPlanAction(data: PlanFormData) {
   }
 }
 
+export async function createPlanWithHistoryAction(data: PlanFormData) {
+  /**
+   * Generate a plan WITH full self-correction history.
+   * Returns version history for the PlanDiff component.
+   */
+  try {
+    const res = await fetchWithRetry(`${API_BASE}/api/plan/generate-verified-with-history`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        syllabus_text: data.syllabusText || getDefaultSyllabus(data.examType),
+        exam_type: data.examType,
+        goal: data.goal,
+        days: data.days,
+      }),
+      retries: 2,
+    })
+
+    const result = await res.json()
+    
+    return { 
+      success: true, 
+      plan: result.final_plan,
+      versions: result.versions,
+      totalIterations: result.total_iterations,
+      selfCorrectionApplied: result.self_correction_applied,
+      verificationSummary: result.verification_summary
+    }
+  } catch (error) {
+    console.error('Plan generation with history error:', error)
+    return { success: false, error: String(error) }
+  }
+}
+
 // --- Tutor Actions ---
 
 export async function getExplanationAction(topic: string, context: string, difficulty: string = 'medium') {

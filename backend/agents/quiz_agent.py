@@ -48,7 +48,6 @@ class AnswerEvaluation(BaseModel):
     misconception: Optional[str] = Field(default=None, description="Identified misconception if wrong")
     hint_for_similar: str = Field(description="Tip for similar questions")
 
-
 # --- Quiz Generator ---
 
 async def generate_quiz(
@@ -106,6 +105,96 @@ REQUIREMENTS:
         config={
             "response_mime_type": "application/json",
             "response_schema": Quiz,
+        }
+    )
+    
+    return response.parsed
+
+
+# --- Multimodal Quiz Generator (Action Era Feature) ---
+
+class ImageQuizQuestion(BaseModel):
+    """A quiz question derived from diagram analysis."""
+    id: str
+    text: str
+    visual_reference: str = Field(description="Reference to specific part of image, e.g. 'In the top-left section...'")
+    question_type: QuestionType
+    options: List[str]
+    correct_option_index: int
+    explanation: str
+    difficulty: DifficultyLevel
+    concept_tested: str
+
+
+class ImageQuiz(BaseModel):
+    """Quiz generated from diagram analysis."""
+    topic: str
+    image_description: str = Field(description="What the AI sees in the image")
+    questions: List[ImageQuizQuestion]
+    visual_elements_used: List[str] = Field(description="List of visual elements referenced in questions")
+    time_estimate_minutes: int
+
+
+async def generate_quiz_from_image(
+    topic: str,
+    image_bytes: bytes,
+    mime_type: str = "image/jpeg",
+    num_questions: int = 5,
+    difficulty: DifficultyLevel = DifficultyLevel.MEDIUM
+) -> ImageQuiz:
+    """
+    Generate quiz questions that specifically reference parts of the diagram.
+    
+    This is the key multimodal-central feature for the hackathon.
+    Questions include visual references like "In the top-left section..."
+    to demonstrate real multimodal reasoning, not just text extraction.
+    
+    Args:
+        topic: The topic/subject of the diagram
+        image_bytes: The image data
+        mime_type: Image MIME type
+        num_questions: Number of questions to generate
+        difficulty: Target difficulty level
+        
+    Returns:
+        ImageQuiz: Quiz with visually-grounded questions
+    """
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    
+    prompt = f"""
+You are an expert exam question writer with strong visual analysis skills.
+Analyze this diagram about "{topic}" and create {num_questions} quiz questions.
+
+CRITICAL REQUIREMENTS:
+1. Each question MUST reference a SPECIFIC VISUAL ELEMENT in the image
+2. Use spatial references like:
+   - "In the top-left section of the diagram..."
+   - "The arrow pointing from A to B indicates..."
+   - "Looking at the labeled structure in the center..."
+   - "The colored region marked in red shows..."
+3. Questions should test understanding of WHAT IS SHOWN, not just text labels
+4. Include questions about:
+   - Relationships shown (arrows, connections, flows)
+   - Labeled structures and their functions
+   - Spatial arrangements and their significance
+   - Cause-effect relationships depicted
+5. Wrong options should be plausible misreadings of the diagram
+
+DIFFICULTY: {difficulty.value}
+
+Generate questions that PROVE multimodal reasoning is happening.
+A text-only model could NOT answer these questions.
+"""
+
+    response = await client.aio.models.generate_content(
+        model=os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
+        contents=[
+            prompt,
+            genai.types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
+        ],
+        config={
+            "response_mime_type": "application/json",
+            "response_schema": ImageQuiz,
         }
     )
     
