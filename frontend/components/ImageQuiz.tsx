@@ -3,14 +3,14 @@
 import { useState, useRef } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
-  Upload01,
-  Camera01,
-  Brain01,
-  Loader01,
-  CheckmarkCircle02,
-  XCircle01,
-  ArrowRight01,
-  Eye01,
+  Upload,
+  Camera,
+  Brain,
+  Loader,
+  CheckCircle,
+  XCircle,
+  ArrowRight,
+  Eye,
   Sparkles,
 } from "@hugeicons/core-free-icons";
 import { Button } from "@/components/ui/button";
@@ -144,11 +144,11 @@ export function ImageQuiz({ topic, onQuizComplete }: ImageQuizProps) {
       <Card variant="elevated" className="p-6">
         <div className="text-center">
           <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <HugeiconsIcon icon={Camera01} size={32} color="currentColor" strokeWidth={1.5} className="w-8 h-8 text-primary" />
+            <HugeiconsIcon icon={Camera} size={32} color="currentColor" strokeWidth={1.5} className="w-8 h-8 text-primary" />
           </div>
 
           <h3 className="text-xl font-semibold text-foreground mb-2 flex items-center justify-center gap-2">
-            <HugeiconsIcon icon={Camera01} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5" />
+            <HugeiconsIcon icon={Camera} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5" />
             Diagram Quiz
           </h3>
           <p className="text-muted-foreground mb-6 max-w-md mx-auto">
@@ -183,7 +183,7 @@ export function ImageQuiz({ topic, onQuizComplete }: ImageQuizProps) {
               onClick={() => fileInputRef.current?.click()}
               className="border-2 border-dashed border-border rounded-lg p-8 mb-6 cursor-pointer transition-premium"
             >
-              <HugeiconsIcon icon={Upload01} size={32} color="currentColor" strokeWidth={1.5} className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+              <HugeiconsIcon icon={Upload} size={32} color="currentColor" strokeWidth={1.5} className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
               <p className="text-muted-foreground">
                 Click to upload a diagram
               </p>
@@ -216,7 +216,7 @@ export function ImageQuiz({ topic, onQuizComplete }: ImageQuizProps) {
           >
             {loading ? (
               <>
-                <HugeiconsIcon icon={Loader01} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5 animate-spin" />
+                <HugeiconsIcon icon={Loader} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5 animate-spin" />
                 Analyzing diagram...
               </>
             ) : (
@@ -245,7 +245,7 @@ export function ImageQuiz({ topic, onQuizComplete }: ImageQuizProps) {
 
     return (
       <Card variant="elevated" className="p-8 text-center">
-        <HugeiconsIcon icon={CheckmarkCircle02} size={64} color="currentColor" strokeWidth={1.5} className="w-16 h-16 text-chart-2 mx-auto mb-4" />
+        <HugeiconsIcon icon={CheckCircle} size={64} color="currentColor" strokeWidth={1.5} className="w-16 h-16 text-chart-2 mx-auto mb-4" />
         <h2 className="text-2xl font-bold text-foreground mb-2">
           Diagram Quiz Complete!
         </h2>
@@ -286,7 +286,7 @@ export function ImageQuiz({ topic, onQuizComplete }: ImageQuizProps) {
           />
           <div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-              <HugeiconsIcon icon={Eye01} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4" />
+              <HugeiconsIcon icon={Eye} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4" />
               AI Image Analysis
             </div>
             <p className="text-foreground text-sm">{quiz.image_description}</p>
@@ -319,7 +319,7 @@ export function ImageQuiz({ topic, onQuizComplete }: ImageQuizProps) {
         {/* Visual reference callout */}
         <div className="bg-primary/5 border border-primary/20 p-3 rounded-lg mb-4 backdrop-blur-lg">
           <p className="text-sm text-primary flex items-center gap-2">
-            <HugeiconsIcon icon={Eye01} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4" />
+            <HugeiconsIcon icon={Eye} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4" />
             {currentQuestion.visual_reference}
           </p>
         </div>
@@ -352,10 +352,10 @@ export function ImageQuiz({ topic, onQuizComplete }: ImageQuizProps) {
               >
                 <span className="text-foreground">{option}</span>
                 {showResult && i === currentQuestion.correct_option_index && (
-                  <HugeiconsIcon icon={CheckmarkCircle02} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5 text-chart-2 flex-shrink-0" />
+                  <HugeiconsIcon icon={CheckCircle} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5 text-chart-2 flex-shrink-0" />
                 )}
                 {showResult && i === selectedOption && !isCorrect && (
-                  <HugeiconsIcon icon={XCircle01} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5 text-destructive flex-shrink-0" />
+                  <HugeiconsIcon icon={XCircle} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5 text-destructive flex-shrink-0" />
                 )}
               </Button>
             );
@@ -372,7 +372,7 @@ export function ImageQuiz({ topic, onQuizComplete }: ImageQuizProps) {
           }`}
         >
           <p className={`font-medium mb-1 flex items-center gap-1 ${isCorrect ? "text-chart-2" : "text-chart-3"}`}>
-            {isCorrect ? <HugeiconsIcon icon={CheckmarkCircle02} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4" /> : <HugeiconsIcon icon={XCircle01} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4" />}
+            {isCorrect ? <HugeiconsIcon icon={CheckCircle} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4" /> : <HugeiconsIcon icon={XCircle} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4" />}
             {isCorrect ? "Correct!" : "Not quite"}
           </p>
           <p className="text-foreground/80 text-sm">
@@ -400,7 +400,7 @@ export function ImageQuiz({ topic, onQuizComplete }: ImageQuizProps) {
           className="w-full"
         >
           {currentIndex < quiz.questions.length - 1 ? "Next Question" : "See Results"}
-          <HugeiconsIcon icon={ArrowRight01} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5" />
+          <HugeiconsIcon icon={ArrowRight} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5" />
         </Button>
       )}
     </div>

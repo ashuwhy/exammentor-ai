@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { Book02Icon } from '@hugeicons/core-free-icons'
+import { Book } from '@hugeicons/core-free-icons'
 import { Button } from '@/components/ui/button'
 
 interface PdfViewerProps {
@@ -41,7 +41,7 @@ export function PdfPlaceholder({ topic }: { topic: string }) {
   return (
     <div className="h-full flex flex-col items-center justify-center bg-muted/30 rounded-lg border border-border p-8 backdrop-blur-lg">
       <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4 backdrop-blur-lg">
-        <HugeiconsIcon icon={Book02Icon} size={24} color="currentColor" strokeWidth={1.5} className="w-6 h-6 text-primary" />
+        <HugeiconsIcon icon={Book} size={24} color="currentColor" strokeWidth={1.5} className="w-6 h-6 text-primary" />
       </div>
       <h3 className="text-xl font-semibold text-foreground mb-2">Study Material</h3>
       <p className="text-muted-foreground text-center max-w-sm">

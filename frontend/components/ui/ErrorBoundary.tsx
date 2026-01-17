@@ -2,7 +2,11 @@
 
 import { Component, ErrorInfo, ReactNode } from 'react'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { AlertTriangle01, Refresh01, ArrowLeft01 } from '@hugeicons/core-free-icons'
+import {
+  AlertTriangle,
+  Refresh,
+  ArrowLeft,
+} from '@hugeicons/core-free-icons'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 
@@ -39,7 +43,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="min-h-screen bg-background flex items-center justify-center p-6">
           <div className="max-w-md w-full card-elevated p-8 text-center animate-fade-in">
-            <HugeiconsIcon icon={AlertTriangle01} size={48} color="currentColor" strokeWidth={1.5} className="w-12 h-12 text-destructive mx-auto mb-4" />
+            <HugeiconsIcon icon={AlertTriangle} size={48} color="currentColor" strokeWidth={1.5} className="w-12 h-12 text-destructive mx-auto mb-4" />
             <h2 className="text-xl font-semibold text-foreground mb-2">
               Something went wrong
             </h2>
@@ -54,7 +58,7 @@ export class ErrorBoundary extends Component<Props, State> {
                   className="flex-1"
                 >
                   <Link href={this.props.fallbackPath}>
-                    <HugeiconsIcon icon={ArrowLeft01} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4" />
+                    <HugeiconsIcon icon={ArrowLeft} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4" />
                     Go Back
                   </Link>
                 </Button>
@@ -64,7 +68,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 className="flex-1"
                 onClick={this.handleRetry}
               >
-                <HugeiconsIcon icon={Refresh01} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4" />
+                <HugeiconsIcon icon={Refresh} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4" />
                 Try Again
               </Button>
             </div>
@@ -89,7 +93,7 @@ export function ErrorDisplay({ error, onRetry, fallbackPath, className = '' }: E
   return (
     <div className={`card-soft bg-destructive/10 border-destructive/30 p-6 backdrop-blur-lg ${className}`}>
       <div className="flex items-start gap-3">
-        <HugeiconsIcon icon={AlertTriangle01} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
+        <HugeiconsIcon icon={AlertTriangle} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5 text-destructive flex-shrink-0 mt-0.5" />
         <div className="flex-1">
           <p className="text-destructive font-medium mb-1">Error</p>
           <p className="text-foreground/80 text-sm mb-4">{error}</p>
@@ -112,7 +116,7 @@ export function ErrorDisplay({ error, onRetry, fallbackPath, className = '' }: E
                 onClick={onRetry}
                 className="gap-1"
               >
-                <HugeiconsIcon icon={Refresh01} size={12} color="currentColor" strokeWidth={1.5} className="w-3 h-3" />
+                <HugeiconsIcon icon={Refresh} size={12} color="currentColor" strokeWidth={1.5} className="w-3 h-3" />
                 Retry
               </Button>
             )}

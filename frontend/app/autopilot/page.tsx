@@ -89,7 +89,11 @@ export default function AutopilotPage() {
   const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
   // Get study plan from localStorage
+  const [hasPlan, setHasPlan] = useState<boolean>(false);
+
+  // Get study plan from localStorage safely
   const getStudyPlan = () => {
+    if (typeof window === 'undefined') return null;
     const stored = localStorage.getItem("studyPlan");
     if (!stored) return null;
     try {
@@ -98,6 +102,10 @@ export default function AutopilotPage() {
       return null;
     }
   };
+
+  useEffect(() => {
+    setHasPlan(!!getStudyPlan());
+  }, []);
 
   // Poll for session status
   const pollStatus = async () => {
@@ -261,7 +269,6 @@ export default function AutopilotPage() {
 
   // No session yet - show start screen
   if (!session) {
-    const hasPlan = !!getStudyPlan();
 
     return (
       <div className="min-h-screen bg-background p-6">

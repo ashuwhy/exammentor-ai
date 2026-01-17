@@ -3,15 +3,15 @@
 import { useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
-  CheckmarkCircle02,
-  XCircle01,
-  AlertTriangle01,
-  ChevronDown01,
-  ChevronRight01,
-  Refresh01,
-  Zap01,
-  Clock01,
-  Book02,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  Refresh,
+  Zap,
+  Clock,
+  Book,
 } from "@hugeicons/core-free-icons";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/button";
@@ -134,9 +134,9 @@ export function PlanDiff({
             }`}
           >
             {selfCorrectionApplied ? (
-              <HugeiconsIcon icon={Refresh01} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5" />
+              <HugeiconsIcon icon={Refresh} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5" />
             ) : (
-              <HugeiconsIcon icon={CheckmarkCircle02} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5" />
+              <HugeiconsIcon icon={CheckCircle} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5" />
             )}
           </div>
           <div>
@@ -168,7 +168,7 @@ export function PlanDiff({
                   : "text-destructive"
               }`}
             >
-              <HugeiconsIcon icon={Book02} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4" />
+              <HugeiconsIcon icon={Book} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4" />
               {verificationSummary.coverage_percent}% coverage
             </div>
             <div
@@ -178,7 +178,7 @@ export function PlanDiff({
                   : "text-chart-3"
               }`}
             >
-              <HugeiconsIcon icon={Clock01} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4" />
+              <HugeiconsIcon icon={Clock} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4" />
               {verificationSummary.overloaded_days_count === 0
                 ? "Balanced"
                 : `${verificationSummary.overloaded_days_count} heavy day(s)`}
@@ -186,9 +186,9 @@ export function PlanDiff({
           </div>
 
           {expanded ? (
-            <HugeiconsIcon icon={ChevronDown01} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5 text-muted-foreground" />
+            <HugeiconsIcon icon={ChevronDown} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5 text-muted-foreground" />
           ) : (
-            <HugeiconsIcon icon={ChevronRight01} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5 text-muted-foreground" />
+            <HugeiconsIcon icon={ChevronRight} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5 text-muted-foreground" />
           )}
         </div>
       </div>
@@ -220,7 +220,7 @@ export function PlanDiff({
                 >
                   v{v.version}
                   {v.was_accepted && (
-                    <HugeiconsIcon icon={CheckmarkCircle02} size={12} color="currentColor" strokeWidth={1.5} className="w-3 h-3 text-chart-2" />
+                    <HugeiconsIcon icon={CheckCircle} size={12} color="currentColor" strokeWidth={1.5} className="w-3 h-3 text-chart-2" />
                   )}
                 </Button>
               ))}
@@ -254,9 +254,9 @@ export function PlanDiff({
                   {v.verification && (
                     <div className="flex items-center gap-2 text-xs">
                       {v.verification.is_valid ? (
-                        <HugeiconsIcon icon={CheckmarkCircle02} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4 text-chart-2" />
+                        <HugeiconsIcon icon={CheckCircle} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4 text-chart-2" />
                       ) : (
-                        <HugeiconsIcon icon={XCircle01} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4 text-destructive" />
+                        <HugeiconsIcon icon={XCircle} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4 text-destructive" />
                       )}
                       <span
                         className={
@@ -276,7 +276,7 @@ export function PlanDiff({
                   <div className="mt-2 space-y-1 text-sm">
                     {v.verification.missing_topics.length > 0 && (
                       <p className="text-muted-foreground flex items-start gap-2">
-                        <HugeiconsIcon icon={AlertTriangle01} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4 text-chart-3 flex-shrink-0 mt-0.5" />
+                        <HugeiconsIcon icon={AlertTriangle} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4 text-chart-3 flex-shrink-0 mt-0.5" />
                         <span>
                           Missing: {v.verification.missing_topics.join(", ")}
                         </span>
@@ -284,7 +284,7 @@ export function PlanDiff({
                     )}
                     {v.verification.overloaded_days.length > 0 && (
                       <p className="text-muted-foreground flex items-start gap-2">
-                        <HugeiconsIcon icon={Clock01} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4 text-chart-3 flex-shrink-0 mt-0.5" />
+                        <HugeiconsIcon icon={Clock} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4 text-chart-3 flex-shrink-0 mt-0.5" />
                         <span>
                           Overloaded days: {v.verification.overloaded_days.join(", ")}
                         </span>
@@ -292,7 +292,7 @@ export function PlanDiff({
                     )}
                     {v.verification.prerequisite_issues.length > 0 && (
                       <p className="text-muted-foreground flex items-start gap-2">
-                        <HugeiconsIcon icon={Zap01} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4 text-chart-3 flex-shrink-0 mt-0.5" />
+                        <HugeiconsIcon icon={Zap} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4 text-chart-3 flex-shrink-0 mt-0.5" />
                         <span>
                           Prerequisite issues:{" "}
                           {v.verification.prerequisite_issues.join("; ")}
@@ -309,7 +309,7 @@ export function PlanDiff({
                 {i < versions.length - 1 && v.verification && !v.verification.is_valid && (
                   <div className="mt-3 pt-2 border-t border-border">
                     <p className="text-xs text-chart-2 flex items-center gap-1">
-                      <HugeiconsIcon icon={Refresh01} size={12} color="currentColor" strokeWidth={1.5} className="w-3 h-3" />
+                      <HugeiconsIcon icon={Refresh} size={12} color="currentColor" strokeWidth={1.5} className="w-3 h-3" />
                       AI self-corrected → v{v.version + 1}
                     </p>
                   </div>

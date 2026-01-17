@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 
 const DOODLES = [
   '/doodles/doodle1.png',
@@ -66,13 +66,18 @@ const generateDoodles = (): DoodlePosition[] => {
 };
 
 export const DoodleBackground = () => {
-  const [doodles, setDoodles] = useState<DoodlePosition[]>([]);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // Necessary to avoid hydration mismatch for random client-side content
+    // eslint-disable-next-line
     setMounted(true);
-    setDoodles(generateDoodles());
   }, []);
+
+  const doodles = useMemo(() => {
+    if (!mounted) return [];
+    return generateDoodles();
+  }, [mounted]);
 
   if (!mounted) {
     return null;

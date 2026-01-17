@@ -38,7 +38,9 @@ interface PerformanceAnalysis {
   }>;
 }
 
-export default function ResultsPage() {
+import { Suspense } from "react";
+
+function ResultsContent() {
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [analysis, setAnalysis] = useState<PerformanceAnalysis | null>(null);
@@ -344,5 +346,13 @@ export default function ResultsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ResultsPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background p-6"><ResultsSkeleton /></div>}>
+      <ResultsContent />
+    </Suspense>
   );
 }
