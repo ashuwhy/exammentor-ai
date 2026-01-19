@@ -18,6 +18,7 @@ import { useSearchParams } from "next/navigation";
 import { analyzePerformanceAction } from "@/app/actions";
 import { ResultsSkeleton } from "@/components/ui/Skeleton";
 import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/Card";
 
 interface Misconception {
   topic: string;
@@ -141,7 +142,7 @@ function ResultsContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background p-6">
+      <div className="min-h-screen p-6">
         <ResultsSkeleton />
       </div>
     );
@@ -149,8 +150,8 @@ function ResultsContent() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-6">
-        <div className="max-w-md w-full card-elevated p-8 text-center">
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <Card variant="elevated" className="max-w-md w-full p-8 text-center">
           <HugeiconsIcon icon={AlertTriangle} size={48} color="currentColor" strokeWidth={1.5} className="w-12 h-12 text-destructive mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-foreground mb-2">Analysis Error</h2>
           <p className="text-muted-foreground mb-6">{error}</p>
@@ -164,7 +165,7 @@ function ResultsContent() {
               <HugeiconsIcon icon={ArrowRight} size={24} color="currentColor" strokeWidth={1.5} className="w-6 h-6" />
             </Link>
           </Button>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -172,7 +173,7 @@ function ResultsContent() {
   const misconceptions = analysis?.misconceptions || [];
   const topicPerformance = analysis?.topic_performance || [];
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen p-6">
       <div className="max-w-5xl mx-auto pt-8 animate-fade-in">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -199,39 +200,39 @@ function ResultsContent() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="card-elevated p-5">
+          <Card className="p-5 border border-border bg-card/50">
             <HugeiconsIcon icon={TrendingUp} size={32} color="currentColor" strokeWidth={1.5} className="w-8 h-8 text-chart-2 mb-2" />
             <p className="text-3xl font-bold text-foreground">
               {stats.overall_score}%
             </p>
             <p className="text-muted-foreground text-sm">Overall Score</p>
-          </div>
-          <div className="card-elevated p-5">
+          </Card>
+          <Card className="p-5 border border-border bg-card/50">
             <HugeiconsIcon icon={Target} size={32} color="currentColor" strokeWidth={1.5} className="w-8 h-8 text-primary mb-2" />
             <p className="text-3xl font-bold text-foreground">
               {stats.topics_mastered}/{stats.topics_total}
             </p>
             <p className="text-muted-foreground text-sm">Topics Mastered</p>
-          </div>
-          <div className="card-elevated p-5">
+          </Card>
+          <Card className="p-5 border border-border bg-card/50">
             <HugeiconsIcon icon={Book02Icon} size={32} color="currentColor" strokeWidth={1.5} className="w-8 h-8 text-chart-1 mb-2" />
             <p className="text-3xl font-bold text-foreground">
               {stats.study_hours}h
             </p>
             <p className="text-muted-foreground text-sm">Study Time</p>
-          </div>
-          <div className="card-elevated p-5">
+          </Card>
+          <Card className="p-5 border border-border bg-card/50">
             <HugeiconsIcon icon={CheckmarkCircle02Icon} size={32} color="currentColor" strokeWidth={1.5} className="w-8 h-8 text-chart-3 mb-2" />
             <p className="text-3xl font-bold text-foreground flex items-center gap-2">
               {stats.streak_days} <HugeiconsIcon icon={Flame} size={32} color="currentColor" strokeWidth={1.5} className="w-8 h-8 text-orange-500 fill-orange-500" />
             </p>
             <p className="text-muted-foreground text-sm">Day Streak</p>
-          </div>
+          </Card>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
           {/* Topic Performance */}
-          <div className="card-elevated p-6">
+          <Card className="p-6 border border-border bg-card/50">
             <h2 className="text-xl font-semibold text-foreground mb-4">
               Topic Performance
             </h2>
@@ -277,10 +278,10 @@ function ResultsContent() {
                 </p>
               )}
             </div>
-          </div>
+          </Card>
 
           {/* Misconceptions */}
-          <div className="card-elevated p-6">
+          <Card className="p-6 border border-border bg-card/50">
             <h2 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
               <HugeiconsIcon icon={AlertTriangle} size={28} color="currentColor" strokeWidth={1.5} className="w-7 h-7 text-chart-3" />
               Areas to Improve
@@ -290,12 +291,12 @@ function ResultsContent() {
                 misconceptions.map((m, i) => (
                 <div
                   key={i}
-                  className="card-soft bg-chart-3/10 border-chart-3/30 p-4 animate-slide-up backdrop-blur-lg"
+                  className="bg-chart-3/10 border border-chart-3/30 p-4 rounded-lg animate-slide-up backdrop-blur-lg"
                   style={{ animationDelay: `${i * 100}ms` }}
                 >
                   <p className="text-foreground font-medium mb-1">{m.topic}</p>
                   <p className="text-muted-foreground text-sm mb-2">{m.issue}</p>
-                  <p className="text-primary text-sm flex items-start gap-2">
+                  <p className="text-chart-3 text-sm flex items-start gap-2">
                     <HugeiconsIcon icon={Lightbulb} size={16} color="currentColor" strokeWidth={1.5} className="w-4 h-4 mt-0.5 flex-shrink-0" />
                     <span>{m.advice}</span>
                   </p>
@@ -317,11 +318,11 @@ function ResultsContent() {
                 </p>
               )}
             </div>
-          </div>
+          </Card>
         </div>
 
         {/* Visual Chart */}
-        <div className="mt-6 card-elevated p-6">
+        <Card className="mt-6 p-6 border border-border bg-card/50">
           <h2 className="text-xl font-semibold text-foreground mb-4">
             Daily Progress
           </h2>
@@ -343,7 +344,7 @@ function ResultsContent() {
           <p className="text-center text-muted-foreground text-sm mt-4">
             Score progression over 7 days
           </p>
-        </div>
+        </Card>
       </div>
     </div>
   );
@@ -351,7 +352,7 @@ function ResultsContent() {
 
 export default function ResultsPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-background p-6"><ResultsSkeleton /></div>}>
+    <Suspense fallback={<div className="min-h-screen p-6"><ResultsSkeleton /></div>}>
       <ResultsContent />
     </Suspense>
   );

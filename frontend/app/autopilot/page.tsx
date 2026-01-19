@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Play,
@@ -98,7 +98,7 @@ export default function AutopilotPage() {
 
   useEffect(() => { setHasPlan(!!getStudyPlan()); }, []);
 
-  const pollStatus = async () => {
+  const pollStatus = useCallback(async () => {
     if (!session || session.status === "completed" || session.status === "idle") return;
     try {
       const res = await fetch(`${API_BASE}/api/autopilot/status/${sessionId}`);
@@ -109,14 +109,14 @@ export default function AutopilotPage() {
         if (data.status === "completed" && pollingRef.current) clearInterval(pollingRef.current);
       }
     } catch (err) { console.error("Polling error:", err); }
-  };
+  }, [session, sessionId, API_BASE]);
 
   useEffect(() => {
     if (session?.status === "running") {
       pollingRef.current = setInterval(pollStatus, 2000);
     }
     return () => { if (pollingRef.current) clearInterval(pollingRef.current); };
-  }, [session?.status]);
+  }, [session?.status, pollStatus]);
 
   const handleStart = async () => {
     const plan = getStudyPlan();
@@ -151,7 +151,15 @@ export default function AutopilotPage() {
   const handleStop = async () => { try { await fetch(`${API_BASE}/api/autopilot/stop/${sessionId}`, { method: "POST" }); if (pollingRef.current) clearInterval(pollingRef.current); await pollStatus(); } catch (e) { console.error(e); } };
 
   const toggleStepExpanded = (index: number) => {
-    setExpandedSteps((prev) => { const next = new Set(prev); next.has(index) ? next.delete(index) : next.add(index); return next; });
+    setExpandedSteps((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
   };
   const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, "0")}`;
   const formatTimestamp = (ts: string) => new Date(ts).toLocaleTimeString();
