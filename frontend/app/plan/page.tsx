@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { PlanSkeleton } from "@/components/ui/Skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
+import { DoodleBackground } from "@/components/DoodleBackground";
 
 interface Topic {
   name: string;
@@ -91,12 +92,13 @@ export default function PlanPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-4xl mx-auto pt-8">
+    <div className="min-h-screen bg-background p-6 relative">
+      <DoodleBackground />
+      <div className="max-w-4xl mx-auto pt-8 relative z-10">
         {/* Header */}
         <div className="flex items-start justify-between mb-12 animate-fade-in">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-primary/10 text-primary text-xs font-medium mb-3 backdrop-blur-lg">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-primary/20 text-primary text-xs font-medium mb-3 backdrop-blur-xl border border-primary/20">
               <HugeiconsIcon icon={Sparkles} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5" />
               AI Generated Plan
             </div>
@@ -131,7 +133,7 @@ export default function PlanPage() {
             </h3>
             <div className="flex flex-wrap gap-2">
               {plan.critical_topics.map((topic, i) => (
-                <div key={i} className="bg-chart-5/10 text-chart-5 border border-chart-5/20 px-4 py-2 rounded-lg text-sm font-medium backdrop-blur-lg">
+                <div key={i} className="bg-chart-5/20 text-chart-5 border border-chart-5/30 px-4 py-2 rounded-lg text-sm font-medium backdrop-blur-xl">
                   {topic}
                 </div>
               ))}

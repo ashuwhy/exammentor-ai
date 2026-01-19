@@ -16,7 +16,9 @@ import { TutorStream } from "@/components/TutorStream";
 import { PdfPlaceholder } from "@/components/PdfViewer";
 import { getExplanationAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
-import { formatMarkdown } from "@/lib/markdown";
+// import { formatMarkdown } from "@/lib/markdown";
+import { MarkdownRenderer } from "@/components/MarkdownRenderer";
+
 import { Card } from "@/components/ui/Card";
 
 export default function LearnPage() {
@@ -145,7 +147,8 @@ export default function LearnPage() {
       const response = await getExplanationAction(
         userMessage,
         getContext(),
-        "medium"
+        "medium",
+        newMessages // Pass conversation history
       );
 
       if (response) {
@@ -184,24 +187,24 @@ export default function LearnPage() {
 
   if (!isInitialized) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <HugeiconsIcon icon={Loading03Icon} size={32} color="currentColor" strokeWidth={1.5} className="w-8 h-8 text-primary animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex relative">
+    <div className="min-h-screen flex relative overflow-hidden">
       {/* Name Modal */}
       {showNameModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-fade-in">
-          <Card variant="elevated" className="w-full max-w-md p-8 shadow-2xl border-primary/20">
+          <Card variant="elevated" className="w-full max-w-md p-8">
             <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-4">
                     <HugeiconsIcon icon={UserIcon} size={32} className="text-primary" />
                 </div>
                 <h2 className="text-2xl font-bold text-foreground">Welcome to AI Tutor</h2>
-                <p className="text-muted-foreground mt-2">What should we call you? We'll save your progress safely in the database.</p>
+                <p className="text-muted-foreground mt-2">What should we call you? We'll save your progress.</p>
             </div>
             
             <div className="space-y-4">
@@ -228,11 +231,18 @@ export default function LearnPage() {
 
       {/* Left Panel - PDF/Content Context */}
       {showPDF && (
-        <div className="w-1/2 border-r border-border flex flex-col backdrop-blur-lg">
-          <div className="p-4 border-b border-border flex items-center justify-between bg-card/95 backdrop-blur-lg">
-            <div className="flex items-center gap-2 text-foreground font-medium">
-              <HugeiconsIcon icon={File01Icon} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5 text-primary" />
-              Study Material
+        <div className="w-1/2 border-r border-border flex flex-col h-screen relative z-10 bg-background/30 backdrop-blur-xl">
+          <div className="p-4 border-b border-border flex items-center justify-between bg-card/40 backdrop-blur-md flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                <HugeiconsIcon icon={File01Icon} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-foreground font-semibold">Study Material</h2>
+                <p className="text-sm text-muted-foreground capitalize">
+                  {topicName}
+                </p>
+              </div>
             </div>
             <Button
               variant="ghost"
@@ -242,18 +252,18 @@ export default function LearnPage() {
               Hide
             </Button>
           </div>
-          <div className="flex-1 p-6 overflow-y-auto">
+          <div className="flex-1 p-6 overflow-y-auto" style={{ minHeight: 0 }}>
             <PdfPlaceholder topic={topicName} />
           </div>
         </div>
       )}
 
       {/* Right Panel - AI Tutor Chat */}
-      <div className={`${showPDF ? "w-1/2" : "w-full"} flex flex-col backdrop-blur-lg`}>
-        <div className="p-4 border-b border-border flex items-center justify-between bg-card/95 backdrop-blur-lg">
+      <div className={`${showPDF ? "w-1/2" : "w-full"} flex flex-col h-screen relative z-10 bg-background/30 backdrop-blur-xl transition-all duration-300`}>
+        <div className="p-4 border-b border-border flex items-center justify-between bg-card/40 backdrop-blur-md flex-shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary/95 rounded-full flex items-center justify-center backdrop-blur-lg">
-              <HugeiconsIcon icon={Book02Icon} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5 text-primary-foreground" />
+            <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+              <HugeiconsIcon icon={Book02Icon} size={20} color="currentColor" strokeWidth={1.5} className="w-5 h-5 text-primary" />
             </div>
             <div>
               <h2 className="text-foreground font-semibold">AI Tutor</h2>
@@ -286,22 +296,18 @@ export default function LearnPage() {
         </div>
 
         {/* Messages & Streaming Content */}
-        <div className="flex-1 p-6 overflow-y-auto space-y-4">
+        <div className="flex-1 p-6 overflow-y-auto space-y-4" style={{ minHeight: 0 }}>
           {/* Initial streaming explanation */}
           {!streamingContent && !isStreaming && messages.length === 0 && (
             <div className="space-y-4">
               <div className="flex justify-start">
-                <div className="bg-secondary/95 rounded-lg px-4 py-3 max-w-[80%] backdrop-blur-lg">
-                  <p className="text-secondary-foreground">
+                <div className="bg-card/60 backdrop-blur-md border border-border/50 rounded-lg px-4 py-3 max-w-[80%] shadow-sm">
+                  <p className="text-foreground">
                     Let&apos;s master <strong>{topicName}</strong> together! I&apos;ll explain the key concepts step by step. Ask me anything along the way.
                   </p>
                 </div>
               </div>
-              <div className="border-t border-border pt-4">
-                {/* Only start stream if we have userId (meaning we are ready) AND no cached content */}
-                {/* If we loaded from DB, streamingContent would be set, so this block is skipped. */}
-                {/* But wait, if we are waiting for User ID, we shouldn't render TutorStream yet? */}
-                {/* Added !showNameModal check to be safe, but userId check is implied by isInitialized/showNameModal logic */}
+              <div className="">
                 {userId && (
                     <TutorStream
                     topic={topicName}
@@ -318,13 +324,8 @@ export default function LearnPage() {
           {streamingContent && (
             <div className="space-y-4">
               <div className="flex justify-start">
-                <div className="bg-secondary/95 rounded-lg px-4 py-3 max-w-[90%] backdrop-blur-lg">
-                  <div 
-                    className="text-secondary-foreground markdown-content"
-                    dangerouslySetInnerHTML={{ 
-                      __html: formatMarkdown(streamingContent)
-                    }} 
-                  />
+                <div className="bg-card/60 backdrop-blur-md border border-border/50 rounded-lg px-4 py-3 max-w-[90%] shadow-sm">
+                  <MarkdownRenderer content={streamingContent} />
                 </div>
               </div>
             </div>
@@ -339,25 +340,30 @@ export default function LearnPage() {
               } animate-slide-up`}
             >
               <div
-                className={`max-w-[80%] rounded-lg px-4 py-3 backdrop-blur-lg ${
+                className={`max-w-[80%] rounded-lg px-4 py-3 shadow-sm ${
                   msg.role === "user"
-                    ? "bg-primary/95 text-primary-foreground"
-                    : "bg-secondary/95 text-secondary-foreground"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-card/60 backdrop-blur-md border border-border/50"
                 }`}
               >
                 <div 
-                    className="whitespace-pre-wrap markdown-content"
-                    dangerouslySetInnerHTML={{ 
-                      __html: msg.role === "ai" ? formatMarkdown(msg.content) : msg.content
-                    }} 
-                />
+                    className={`whitespace-pre-wrap ${
+                      msg.role === "user" ? "text-primary-foreground" : "text-foreground"
+                    }`}
+                >
+                    {msg.role === "ai" ? (
+                      <MarkdownRenderer content={msg.content} />
+                    ) : (
+                      msg.content
+                    )}
+                </div>
               </div>
             </div>
           ))}
           
           {isTyping && (
             <div className="flex justify-start">
-              <div className="bg-secondary/95 rounded-lg px-4 py-3 backdrop-blur-lg">
+              <div className="bg-card/60 backdrop-blur-md border border-border/50 rounded-lg px-4 py-3 shadow-sm">
                 <div className="flex gap-1">
                   <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" />
                   <span
@@ -374,14 +380,14 @@ export default function LearnPage() {
           )}
 
           {error && (
-            <div className="card-soft bg-destructive/10 border-destructive/30 p-3 backdrop-blur-lg">
+            <div className="card-soft bg-destructive/10 border-destructive/30 p-3">
               <p className="text-destructive text-sm">{error}</p>
             </div>
           )}
         </div>
 
         {/* Input */}
-        <div className="p-4 border-t border-border bg-card/95 backdrop-blur-lg">
+        <div className="p-4 border-t border-border bg-card/40 backdrop-blur-md flex-shrink-0">
           <div className="flex gap-3">
             <input
               type="text"
@@ -389,7 +395,7 @@ export default function LearnPage() {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSend()}
               placeholder="Ask a follow-up question..."
-              className="input-clean flex-1"
+              className="input-clean flex-1 bg-background/50 backdrop-blur-md border-primary/20 focus:border-primary/50"
             />
             <Button
               variant="premium"

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Poppins, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { DoodleBackground } from "@/components/DoodleBackground";
+import "katex/dist/katex.min.css";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -33,7 +34,7 @@ export default function RootLayout({
       >
         <ThemeProvider>
           <DoodleBackground />
-          <div className="relative">
+          <div className="relative z-10">
             {children}
           </div>
         </ThemeProvider>

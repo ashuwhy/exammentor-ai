@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { Sparkles } from '@hugeicons/core-free-icons'
-import { formatMarkdown } from '@/lib/markdown'
+import { MarkdownRenderer } from '@/components/MarkdownRenderer'
 
 interface TutorStreamProps {
   topic: string
@@ -22,12 +22,49 @@ export function TutorStream({
   const [isStreaming, setIsStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  
+  // Refs for buffering and scroll control
+  const contentBuffer = useRef('')
+  const autoScrollRef = useRef(true)
+
+  // Smart scroll handler to detect if user has scrolled away from bottom
+  const handleScroll = () => {
+    if (containerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = containerRef.current
+      // If user is within 50px of bottom, sticky scroll is enabled
+      const isAtBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 50
+      autoScrollRef.current = isAtBottom
+    }
+  }
+
+  // Effect to apply scroll when content updates, only if sticky scroll is active
+  useEffect(() => {
+    if (autoScrollRef.current && containerRef.current) {
+        containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: 'smooth' })
+    }
+  }, [content])
+
+  // Periodic flush effect to update UI at a smooth frame rate (e.g. 20fps)
+  useEffect(() => {
+    if (!isStreaming) return
+    
+    const intervalId = setInterval(() => {
+        // Only trigger re-render if content has actually changed
+        if (content !== contentBuffer.current) {
+            setContent(contentBuffer.current)
+        }
+    }, 50) 
+
+    return () => clearInterval(intervalId)
+  }, [isStreaming, content])
 
   useEffect(() => {
     const streamExplanation = async () => {
       setIsStreaming(true)
       setContent('')
+      contentBuffer.current = ''
       setError(null)
+      autoScrollRef.current = true
 
       try {
         const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
@@ -48,24 +85,19 @@ export function TutorStream({
           throw new Error('No response body')
         }
 
-        let fullContent = ''
-
         while (true) {
           const { done, value } = await reader.read()
           
           if (done) break
 
           const chunk = decoder.decode(value, { stream: true })
-          fullContent += chunk
-          setContent(fullContent)
-
-          // Auto-scroll to bottom
-          if (containerRef.current) {
-            containerRef.current.scrollTop = containerRef.current.scrollHeight
-          }
+          // Just update the buffer, don't trigger React state update yet
+          contentBuffer.current += chunk
         }
 
-        onComplete?.(fullContent)
+        // Final flush
+        setContent(contentBuffer.current)
+        onComplete?.(contentBuffer.current)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
@@ -97,16 +129,12 @@ export function TutorStream({
       
       <div 
         ref={containerRef}
-        className="max-w-none overflow-y-auto"
+        onScroll={handleScroll}
+        className="max-w-[90%] overflow-y-auto bg-card/60 backdrop-blur-md border border-border/50 rounded-lg px-4 py-3 shadow-sm"
         style={{ maxHeight: 'calc(100vh - 200px)' }}
       >
         {content ? (
-          <div 
-            className="text-foreground/90 markdown-content"
-            dangerouslySetInnerHTML={{ 
-              __html: formatMarkdown(content) 
-            }} 
-          />
+            <MarkdownRenderer content={content} />
         ) : (
           <div className="flex items-center justify-center h-32">
             <div className="w-8 h-8 border-2 border-primary/30 rounded-full animate-spin border-t-primary" />

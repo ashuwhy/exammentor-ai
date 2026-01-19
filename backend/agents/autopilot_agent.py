@@ -109,6 +109,28 @@ class AutopilotEngine:
         self.client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
         self._running = False
         self._paused = False
+
+    async def _retry_operation(self, operation, *args, **kwargs):
+        """Retry an async operation with exponential backoff."""
+        max_retries = 5
+        base_delay = 2
+        
+        for attempt in range(max_retries):
+            try:
+                return await operation(*args, **kwargs)
+            except Exception as e:
+                # Check for 503 or 429 errors (overloaded/rate limit)
+                error_str = str(e)
+                if "503" in error_str or "429" in error_str or "overloaded" in error_str:
+                    if attempt == max_retries - 1:
+                        raise e
+                    
+                    delay = base_delay * (2 ** attempt)
+                    print(f"[AUTOPILOT] Model overloaded. Retrying in {delay}s... (Attempt {attempt + 1}/{max_retries})")
+                    await asyncio.sleep(delay)
+                else:
+                    raise e
+
     
     def log_step(
         self,
@@ -176,14 +198,17 @@ Return your decision using the response schema.
         
         start_time = datetime.datetime.now()
         
-        response = await self.client.aio.models.generate_content(
-            model=os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
-            contents=prompt,
-            config={
-                "response_mime_type": "application/json",
-                "response_schema": TopicSelection,
-            }
-        )
+        async def _call_genai():
+            return await self.client.aio.models.generate_content(
+                model=os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
+                contents=prompt,
+                config={
+                    "response_mime_type": "application/json",
+                    "response_schema": TopicSelection,
+                }
+            )
+
+        response = await self._retry_operation(_call_genai)
         
         selection = response.parsed
         duration = int((datetime.datetime.now() - start_time).total_seconds() * 1000)
@@ -215,7 +240,11 @@ Return your decision using the response schema.
         
         # Use the tutor agent
         context = f"Exam: {self.session.exam_type}. This is micro-lesson {lesson_num}/2."
-        explanation = await generate_explanation(topic, context, "medium")
+        
+        async def _call_tutor():
+            return await generate_explanation(topic, context, "medium")
+
+        explanation = await self._retry_operation(_call_tutor)
         
         duration = int((datetime.datetime.now() - start_time).total_seconds() * 1000)
         
@@ -243,13 +272,16 @@ Return your decision using the response schema.
         mastery = self.session.topic_mastery.get(topic, TopicMastery(topic=topic))
         previous_mistakes = mastery.misconceptions[:3] if mastery.misconceptions else None
         
-        quiz = await generate_quiz(
-            topic=topic,
-            context=context,
-            num_questions=3,
-            difficulty=DifficultyLevel.MEDIUM,
-            previous_mistakes=previous_mistakes
-        )
+        async def _call_quiz():
+            return await generate_quiz(
+                topic=topic,
+                context=context,
+                num_questions=3,
+                difficulty=DifficultyLevel.MEDIUM,
+                previous_mistakes=previous_mistakes
+            )
+
+        quiz = await self._retry_operation(_call_quiz)
         
         duration = int((datetime.datetime.now() - start_time).total_seconds() * 1000)
         
@@ -302,11 +334,14 @@ Return your decision using the response schema.
                 
                 # Use misconception agent
                 try:
-                    analysis = await analyze_and_bust_misconception(
-                        question=question,
-                        wrong_answer_index=answer,
-                        topic_context=f"Topic: {topic}. Exam: {self.session.exam_type}"
-                    )
+                    async def _call_misconception():
+                        return await analyze_and_bust_misconception(
+                            question=question,
+                            wrong_answer_index=answer,
+                            topic_context=f"Topic: {topic}. Exam: {self.session.exam_type}"
+                        )
+
+                    analysis = await self._retry_operation(_call_misconception)
                     
                     duration = int((datetime.datetime.now() - start_time).total_seconds() * 1000)
                     
@@ -528,6 +563,10 @@ async def start_autopilot(
     _active_engines[session_id] = engine
     
     # Start the session in background
+    # Fix: Set status to running immediately to prevent race condition 
+    # where frontend gets "idle" and stops polling
+    session.status = "running"
+    
     asyncio.create_task(_run_session_background(session_id, engine))
     
     return session

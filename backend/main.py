@@ -51,6 +51,7 @@ class TutorRequest(BaseModel):
     topic: str
     context: str
     difficulty: str = "medium"
+    history: Optional[List[dict]] = None
 
 
 class QuizRequest(BaseModel):
@@ -230,7 +231,8 @@ async def explain_topic(request: TutorRequest):
         explanation = await generate_explanation(
             topic=request.topic,
             context=request.context,
-            difficulty=request.difficulty
+            difficulty=request.difficulty,
+            history=request.history
         )
         return explanation.model_dump()
     except Exception as e:
@@ -246,7 +248,8 @@ async def stream_topic_explanation(request: TutorRequest):
         async for chunk in stream_explanation(
             topic=request.topic,
             context=request.context,
-            difficulty=request.difficulty
+            difficulty=request.difficulty,
+            history=request.history
         ):
             yield chunk
     

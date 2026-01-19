@@ -51,7 +51,8 @@ class MultimodalExplanation(BaseModel):
 async def stream_explanation(
     topic: str,
     context: str,
-    difficulty: str = "medium"
+    difficulty: str = "medium",
+    history: Optional[List[dict]] = None
 ) -> AsyncGenerator[str, None]:
     """
     Stream an explanation character-by-character for live UI feedback.
@@ -60,6 +61,7 @@ async def stream_explanation(
         topic: The topic to explain
         context: Relevant context from the syllabus/textbook
         difficulty: easy, medium, or hard - adjusts explanation depth
+        history: Previous conversation messages [{"role": "user", "content": "..."}, ...]
         
     Yields:
         str: Chunks of the explanation text
@@ -72,12 +74,23 @@ async def stream_explanation(
         "hard": "Be comprehensive, include edge cases and advanced concepts"
     }.get(difficulty, "Balance depth with clarity")
     
+    history_text = ""
+    if history:
+        history_text = "\nPREVIOUS CONVERSATION HISTORY:\n"
+        for msg in history[-10:]: # Include last 10 messages context
+            role = "Student" if msg.get("role") == "user" else "Tutor"
+            history_text += f"{role}: {msg.get('content')}\n"
+    
     prompt = f"""
 You are an expert tutor using the Feynman Technique.
-Explain "{topic}" to a student preparing for their exam.
+You are helping a student prepare for their exam.
 
 CONTEXT FROM THEIR STUDY MATERIAL:
 {context[:5000]}
+
+{history_text}
+
+CURRENT QUESTION: "{topic}"
 
 EXPLANATION STYLE ({difficulty.upper()}):
 {depth_instruction}
@@ -90,9 +103,9 @@ STRUCTURE YOUR RESPONSE:
 5. **Quick Check**: End with a simple question to test understanding
 
 Use markdown formatting. Be encouraging but accurate.
+If the question is a follow-up (like "explain more"), use the history to provide a deeper or alternative explanation of the previous topic.
 """
 
-    # Enable streaming for live UI feedback
     # Enable streaming for live UI feedback
     response = await client.aio.models.generate_content_stream(
         model=os.getenv("GEMINI_MODEL", "gemini-2.5-pro-preview-05-06"),
@@ -108,7 +121,8 @@ Use markdown formatting. Be encouraging but accurate.
 async def generate_explanation(
     topic: str,
     context: str,
-    difficulty: str = "medium"
+    difficulty: str = "medium",
+    history: Optional[List[dict]] = None
 ) -> TutorExplanation:
     """
     Generate a complete structured explanation (non-streaming).
@@ -117,12 +131,21 @@ async def generate_explanation(
     """
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     
+    history_text = ""
+    if history:
+        history_text = "\nPREVIOUS CONVERSATION:\n"
+        for msg in history[-5:]: 
+            role = "Student" if msg.get("role") == "user" else "Tutor"
+            history_text += f"{role}: {msg.get('content')}\n"
+
     prompt = f"""
 You are an expert tutor using the Feynman Technique.
 Explain "{topic}" comprehensively.
 
 CONTEXT:
 {context[:5000]}
+
+{history_text}
 
 Create a complete explanation with:
 - A simple intuition

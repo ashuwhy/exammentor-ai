@@ -182,12 +182,12 @@ export async function createPlanWithHistoryAction(data: PlanFormData) {
 
 // --- Tutor Actions ---
 
-export async function getExplanationAction(topic: string, context: string, difficulty: string = 'medium') {
+export async function getExplanationAction(topic: string, context: string, difficulty: string = 'medium', history: any[] = []) {
   try {
     const res = await fetchWithRetry(`${API_BASE}/api/tutor/explain`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topic, context, difficulty }),
+      body: JSON.stringify({ topic, context, difficulty, history }),
       retries: 2,
     })
 
