@@ -7,7 +7,7 @@ Uses Pydantic models to guarantee valid JSON output from the LLM.
 import os
 from google import genai
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, AsyncGenerator
 
 
 # --- Strict Output Schemas (Gemini 3 Structured Outputs) ---
