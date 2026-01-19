@@ -225,7 +225,7 @@ export default function OnboardingPage() {
 
   if (isAnalyzing) {
     return (
-      <div className="min-h-screen bg-background relative overflow-hidden flex items-center justify-center p-6">
+      <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-6">
         <div className="relative z-10 w-full max-w-lg">
           <div className="text-center space-y-8 animate-fade-in">
             {/* Main Spinner */}
@@ -341,7 +341,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background relative overflow-hidden">
+    <div className="min-h-screen relative overflow-hidden">
       <div className="relative z-10 p-6">
         <div className="max-w-2xl mx-auto pt-12 animate-fade-in">
         {/* Stepper */}

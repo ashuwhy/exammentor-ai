@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { PlanSkeleton } from "@/components/ui/Skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
-import { DoodleBackground } from "@/components/DoodleBackground";
+
 
 interface Topic {
   name: string;
@@ -61,7 +61,7 @@ export default function PlanPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background p-6">
+      <div className="min-h-screen p-6">
         <PlanSkeleton />
       </div>
     );
@@ -92,8 +92,7 @@ export default function PlanPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background p-6 relative">
-      <DoodleBackground />
+    <div className="min-h-screen p-6 relative">
       <div className="max-w-4xl mx-auto pt-8 relative z-10">
         {/* Header */}
         <div className="flex items-start justify-between mb-12 animate-fade-in">

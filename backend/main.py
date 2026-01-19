@@ -11,7 +11,6 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Optional
 import os
-import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
@@ -31,7 +30,7 @@ app = FastAPI(
 # CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://localhost:3000"],
+    allow_origins=["*"],  # Allow all for hackathon/production ease
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
