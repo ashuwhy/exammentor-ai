@@ -32,6 +32,18 @@ interface AutopilotStep {
   duration_ms?: number;
 }
 
+
+interface AutopilotQuestion {
+  id: string;
+  text: string;
+  question_type: string;
+  options: string[];
+  correct_option_index: number;
+  explanation: string;
+  difficulty: string;
+  concept_tested: string;
+}
+
 interface AutopilotSession {
   session_id: string;
   status: string;
@@ -47,7 +59,7 @@ interface AutopilotSession {
   
   // Interactive State
   current_content: string | null;
-  current_question: Record<string, any> | null;
+  current_question: AutopilotQuestion | null;
   awaiting_input: boolean;
 }
 
@@ -354,7 +366,7 @@ export default function AutopilotPage() {
                                 </h3>
                                 
                                 <div className="space-y-3">
-                                    {(session.current_question.options as string[]).map((option, idx) => (
+                                    {session.current_question.options.map((option, idx) => (
                                         <button
                                             key={idx}
                                             onClick={() => handleAnswer(idx)}
