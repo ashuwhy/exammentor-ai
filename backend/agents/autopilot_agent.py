@@ -109,6 +109,7 @@ class AutopilotEngine:
     5. Logs every decision with reasoning for the run log
     """
     
+    def __init__(self, session: AutopilotSession):
         self.session = session
         self.client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
         self._running = False

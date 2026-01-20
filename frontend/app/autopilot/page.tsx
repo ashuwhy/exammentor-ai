@@ -257,10 +257,10 @@ export default function AutopilotPage() {
   // --- INTERACTIVE SESSION ---
   return (
     <div className="min-h-screen pb-12">
-      <div className="max-w-7xl mx-auto px-4 pt-6">
+      <div className="max-w-7xl mx-auto px-4">
         
         {/* TOP HEADER */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6 sticky top-0 bg-background/95 backdrop-blur-sm z-10 py-4 border-b border-border/40">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-2 sticky top-0 z-10 py-4">
            <div>
              <h1 className="text-xl font-bold flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-primary animate-pulse"/>
@@ -362,7 +362,7 @@ export default function AutopilotPage() {
                         {/* 3. DEFAULT/TRANSITION VIEW */}
                         {(!session.current_content && !session.current_question) && (
                             <div className="h-full flex flex-col items-center justify-center text-center opacity-60">
-                                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 animate-bounce">
+                                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 animate-pulse">
                                     <HugeiconsIcon icon={Brain} size={32} className="text-primary" />
                                 </div>
                                 <h3 className="text-lg font-medium">Thinking...</h3>
