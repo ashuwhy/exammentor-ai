@@ -538,7 +538,12 @@ async def get_autopilot_status(session_id: str):
         "topic_mastery": {k: v.model_dump() for k, v in session.topic_mastery.items()},
         "steps": [step.model_dump() for step in session.steps],
         "started_at": session.started_at,
-        "completed_at": session.completed_at
+        "completed_at": session.completed_at,
+        
+        # Interactive State
+        "current_content": session.current_content,
+        "current_question": session.current_question,
+        "awaiting_input": session.awaiting_input
     }
 
 
@@ -594,6 +599,30 @@ async def stop_autopilot_session(session_id: str):
         engine.stop()
     
     return {"status": "stopped", "session_id": session_id}
+
+
+class AutopilotAnswerRequest(BaseModel):
+    answer_index: int
+
+
+@app.post("/api/autopilot/answer/{session_id}")
+async def submit_autopilot_answer(session_id: str, request: AutopilotAnswerRequest):
+    """Submit an answer to the running autopilot session."""
+    from agents.autopilot_agent import get_session, get_engine
+    
+    session = get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    if not session.awaiting_input:
+        raise HTTPException(status_code=400, detail="Session is not waiting for input")
+    
+    engine = get_engine(session_id)
+    if engine:
+        engine.submit_answer(request.answer_index)
+        return {"status": "answer_received", "session_id": session_id}
+    
+    raise HTTPException(status_code=500, detail="Engine not found")
 
 
 # --- Run with: uvicorn main:app --reload --port 8000 ---

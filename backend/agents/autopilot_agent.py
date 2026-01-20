@@ -79,6 +79,11 @@ class AutopilotSession(BaseModel):
     # Context
     study_plan: Optional[Dict[str, Any]] = None
     exam_type: str = "NEET"
+    
+    # Interaction State - Added for "Action Era" Interactivity
+    current_content: Optional[str] = None  # Text of lesson or image description
+    current_question: Optional[Dict[str, Any]] = None
+    awaiting_input: bool = False
 
 
 class TopicSelection(BaseModel):
@@ -104,12 +109,35 @@ class AutopilotEngine:
     5. Logs every decision with reasoning for the run log
     """
     
-    def __init__(self, session: AutopilotSession):
         self.session = session
         self.client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
         self._running = False
         self._paused = False
+        
+        # Event to pause execution while waiting for user input
+        self.waiting_event = asyncio.Event()
+        self.user_answer_index: Optional[int] = None
 
+    async def wait_for_answer(self) -> int:
+        """Pause execution until the user submits an answer."""
+        self.session.awaiting_input = True
+        self.waiting_event.clear()
+        self.user_answer_index = None
+        
+        print("[AUTOPILOT] Waiting for user input...")
+        
+        # Wait until submit_answer is called
+        await self.waiting_event.wait()
+        
+        self.session.awaiting_input = False
+        print(f"[AUTOPILOT] Received answer: {self.user_answer_index}")
+        return self.user_answer_index if self.user_answer_index is not None else -1
+
+    def submit_answer(self, answer_index: int):
+        """Receive answer from API and resume execution."""
+        self.user_answer_index = answer_index
+        self.waiting_event.set()
+    
     async def _retry_operation(self, operation, *args, **kwargs):
         """Retry an async operation with exponential backoff."""
         max_retries = 5
@@ -245,6 +273,8 @@ Return your decision using the response schema.
             return await generate_explanation(topic, context, "medium")
 
         explanation = await self._retry_operation(_call_tutor)
+        
+        self.session.current_content = explanation.intuition if explanation else "Lesson content unavailable."
         
         duration = int((datetime.datetime.now() - start_time).total_seconds() * 1000)
         
@@ -471,21 +501,24 @@ Return your decision using the response schema.
             yield self.session.steps[-1]  # Yield quiz generated step
             
             if quiz_result["quiz"]:
-                # Simulate answers (in real app, this would come from UI)
-                # For demo, we'll generate "student" answers that are mostly correct
                 questions = quiz_result["quiz"].questions
-                simulated_answers = []
-                for q in questions:
-                    # 70% chance of correct answer for demo
-                    import random
-                    if random.random() < 0.7:
-                        simulated_answers.append(q.correct_option_index)
-                    else:
-                        wrong_indices = [i for i in range(len(q.options)) if i != q.correct_option_index]
-                        simulated_answers.append(random.choice(wrong_indices) if wrong_indices else 0)
+                real_answers = []
+                
+                # Interactive Quiz Mode
+                for i, q in enumerate(questions):
+                    # Update session state for UI
+                    self.session.current_question = q.model_dump()
+                    self.session.current_content = None # Clear lesson text
+                    
+                    # Wait for user input
+                    user_idx = await self.wait_for_answer()
+                    real_answers.append(user_idx)
+                    
+                    # Clear question after answer
+                    self.session.current_question = None
                 
                 # 4. Analyze results
-                analysis = await self.analyze_quiz_results(topic, questions, simulated_answers)
+                analysis = await self.analyze_quiz_results(topic, questions, real_answers)
                 yield self.session.steps[-1]  # Yield topic completed step
             
             self.session.topics_completed += 1
