@@ -256,8 +256,8 @@ export default function AutopilotPage() {
 
   // --- INTERACTIVE SESSION ---
   return (
-    <div className="min-h-screen pb-12">
-      <div className="max-w-7xl mx-auto px-4">
+    <div className="min-h-screen flex flex-col">
+      <div className="max-w-7xl w-full mx-auto px-4 flex flex-col">
         
         {/* TOP HEADER */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-2 sticky top-0 z-10 py-4">
@@ -288,10 +288,29 @@ export default function AutopilotPage() {
            </div>
         </div>
 
-        <div className="grid lg:grid-cols-12 gap-6 h-[calc(100vh-140px)]">
+        {/* Mastery Overview */}
+        {Object.keys(session.topic_mastery).length > 0 && (
+          <Card className="p-4 mb-4 border border-border bg-card/60">
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <HugeiconsIcon icon={TrendingUp} size={16} className="text-primary" />
+              Topic Mastery
+            </h3>
+            <div className="flex gap-2 flex-wrap">
+              {Object.entries(session.topic_mastery).map(([key, data]) => (
+                <div key={key} className="px-3 py-1.5 rounded-md bg-primary/10 border border-primary/20 text-xs font-medium">
+                  <span className="text-foreground">{data.topic}:</span> <span className="text-primary font-semibold">{data.score}%</span>
+                  <span className="text-muted-foreground ml-1">({data.attempts} attempts)</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        <div className="pb-6">
+            <div className="grid lg:grid-cols-12 gap-6 items-start">
             
             {/* MAIN CONTENT AREA (8 cols) */}
-            <div className="lg:col-span-8 flex flex-col gap-4 h-full">
+            <div className="lg:col-span-8 flex flex-col gap-4">
                 
                 {/* DYNAMIC VIEWPORT */}
                 <Card className="flex-1 border border-border bg-card/60 relative overflow-hidden flex flex-col">
@@ -374,15 +393,15 @@ export default function AutopilotPage() {
             </div>
 
             {/* SIDEBAR LOG (4 cols) */}
-            <div className="lg:col-span-4 h-full">
-                <Card className="h-full flex flex-col border border-border bg-card/60">
-                    <div className="p-4 border-b border-border flex items-center justify-between bg-card/40">
+            <div className="lg:col-span-4">
+                <Card className="h-[70vh] flex flex-col border border-border bg-card/60">
+                    <div className="p-4 border-b border-border flex items-center justify-between bg-card/40 flex-shrink-0">
                         <h2 className="font-semibold text-sm flex items-center gap-2">
                            <HugeiconsIcon icon={Brain} size={16} className="text-primary" /> Thought Stream
                         </h2>
                         <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Live Log</span>
                     </div>
-                    <div ref={runLogRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+                    <div ref={runLogRef} className="flex-1 overflow-y-auto min-h-0 px-4 pt-4 pb-4 space-y-4">
                         {session.steps.map((step, index) => (
                             <div key={index} className="relative pl-4 border-l border-border pb-1">
                                 <div className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full border border-border bg-background flex items-center justify-center">
@@ -408,6 +427,7 @@ export default function AutopilotPage() {
                 </Card>
             </div>
 
+        </div>
         </div>
       </div>
     </div>
