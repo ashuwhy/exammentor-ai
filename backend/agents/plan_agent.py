@@ -5,9 +5,11 @@ Uses Pydantic models to guarantee valid JSON output from the LLM.
 """
 
 import os
-from google import genai
+import os
 from pydantic import BaseModel, Field
 from typing import List, Optional, AsyncGenerator
+from services.genai_service import client
+from router import route_request, get_safe_syllabus
 
 
 # --- Strict Output Schemas (Gemini 3 Structured Outputs) ---
@@ -51,7 +53,7 @@ async def generate_study_plan(
     days: int = 7
 ) -> StudyPlan:
     """Generate a structured study plan (Legacy/Draft version)."""
-    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    # client imported from services
     
     prompt = f"""
 You are an expert exam strategist specializing in {exam_type} preparation.
@@ -72,6 +74,7 @@ INSTRUCTIONS:
 6. Identify the 3-5 most critical topics that will have the highest impact
 """
 
+    # Use aio for async generation
     response = await client.aio.models.generate_content(
         model=os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
         contents=prompt,
@@ -90,7 +93,7 @@ async def verify_study_plan(
     exam_type: str
 ) -> PlanVerification:
     """Verify the study plan against the syllabus and pedagogical best practices."""
-    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    # client imported from services
 
     prompt = f"""
 You are an expert Educational Auditor. 
@@ -171,8 +174,44 @@ async def generate_verified_plan_with_history(
     This is the key "Action Era" feature that shows judges how the AI
     identifies problems and fixes them autonomously.
     """
-    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-    
+    Returns full version history for the self-correction diff UI.
+    This is the key "Action Era" feature that shows judges how the AI
+    identifies problems and fixes them autonomously.
+    """
+    # 1. Route First (The Router Layer)
+    # We use the 'goal' as the primary user input for intent/routing
+    try:
+        route = await route_request(goal, current_exam_context=exam_type)
+        print(f"🧭 Routed: Intent={route.intent}, Exam={route.exam}, Scope={route.scope.subject}")
+        
+        # 2. Guard: Check if clarification is needed
+        if route.needs_clarification:
+            # For now, we log it. In a full implementation, we would return a clarification request.
+            print(f"⚠️ Router requested clarification: {route.clarifying_question}")
+            # raise ValueError(f"Clarification needed: {route.clarifying_question}") 
+
+        # 3. Fetch Scoped Syllabus
+        scoped_syllabus_text = get_safe_syllabus(route)
+        
+        # 4. Inject Scope Constraint into Goal (so we don't break function signatures)
+        if route.scope.subject and route.scope.subject.lower() not in ["all", "general"]:
+             scope_str = f"{route.scope.subject}"
+             if route.scope.sub_subject:
+                 scope_str += f" ({route.scope.sub_subject})"
+             
+             goal = f"""{goal}
+             
+             STRICT CONSTRAINT: Cover ONLY {scope_str}.
+             Do NOT include topics from other subjects outside of {scope_str}.
+             """
+             print(f"🔒 Scope Constraint Applied: {scope_str}")
+        
+        # Use the scoped syllabus!
+        syllabus_text = scoped_syllabus_text
+        
+    except Exception as e:
+        print(f"⚠️ Routing failed, falling back to legacy mode: {e}")
+
     versions: List[PlanVersion] = []
     
     # Iteration 1: Draft
@@ -279,9 +318,35 @@ async def stream_verified_plan_with_history(
     import json
     from typing import AsyncGenerator
     
-    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    # client imported from services
     
     versions: List[PlanVersion] = []
+
+    # 1. Route First (The Router Layer) - Streaming Version
+    try:
+        route = await route_request(goal, current_exam_context=exam_type)
+        yield json.dumps({"type": "debug", "message": f"Routed to: {route.exam} - {route.scope.subject}"}) + "\n"
+        
+        # 3. Fetch Scoped Syllabus
+        scoped_syllabus_text = get_safe_syllabus(route)
+        
+        # 4. Inject Scope Constraint
+        if route.scope.subject and route.scope.subject.lower() not in ["all", "general"]:
+             scope_str = f"{route.scope.subject}"
+             if route.scope.sub_subject:
+                 scope_str += f" ({route.scope.sub_subject})"
+             
+             goal = f"""{goal}
+             
+             STRICT CONSTRAINT: Cover ONLY {scope_str}.
+             Do NOT include topics from other subjects outside of {scope_str}.
+             """
+        
+        # Use the scoped syllabus
+        syllabus_text = scoped_syllabus_text
+        
+    except Exception as e:
+        print(f"Streaming routing failed: {e}")
     
     # 1. Draft Phase
     yield json.dumps({"type": "status", "message": f"Drafting initial plan for {exam_type}..."}) + "\n"
