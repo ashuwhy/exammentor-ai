@@ -273,6 +273,26 @@ export async function submitAnswerAction(
   }
 }
 
+// --- Session Start (persists study_sessions) ---
+
+export async function startStudySessionAction(
+  userId: string,
+  examType: string = "NEET",
+): Promise<{ session_id: string } | null> {
+  try {
+    const res = await fetch(`${API_BASE}/api/session/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: userId, exam_type: examType }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (error) {
+    console.error("Session start error:", error);
+    return null;
+  }
+}
+
 // --- Analysis Actions ---
 
 export async function analyzePerformanceAction(
@@ -286,16 +306,21 @@ export async function analyzePerformanceAction(
   }>,
   topic: string,
   context: string,
+  options?: { userId?: string; topicId?: string },
 ) {
   try {
+    const body: Record<string, unknown> = {
+      quiz_answers: quizAnswers,
+      topic,
+      context,
+    };
+    if (options?.userId) body.user_id = options.userId;
+    if (options?.topicId) body.topic_id = options.topicId;
+
     const res = await fetchWithRetry(`${API_BASE}/api/analyze/performance`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        quiz_answers: quizAnswers,
-        topic,
-        context,
-      }),
+      body: JSON.stringify(body),
       retries: 2,
     });
 
@@ -340,7 +365,8 @@ export async function bustMisconceptionAction(data: {
   student_answer_index: number;
   concept_tested: string;
   topic_context: string;
-  session_id: string;
+  session_id?: string;
+  user_id?: string;
 }) {
   try {
     const res = await fetchWithRetry(`${API_BASE}/api/quiz/misconception`, {

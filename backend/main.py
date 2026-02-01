@@ -75,6 +75,8 @@ class AnalysisRequest(BaseModel):
     quiz_answers: List[dict]
     topic: str
     context: str
+    user_id: Optional[str] = None  # For persisting misconceptions
+    topic_id: Optional[str] = None  # UUID of topics row if available
 
 
 class ImageTutorRequest(BaseModel):
@@ -91,8 +93,8 @@ class MisconceptionRequest(BaseModel):
     student_answer_index: int
     concept_tested: str
     topic_context: str
-    session_id: str
-    session_id: str
+    session_id: Optional[str] = None
+    user_id: Optional[str] = None  # For persisting to misconceptions table
 
 
 class UserLoginRequest(BaseModel):
@@ -393,6 +395,19 @@ async def analyze_performance_endpoint(request: AnalysisRequest):
             topic=request.topic,
             context=request.context
         )
+        # Persist misconceptions to DB when user_id (and optionally topic_id) provided
+        if request.user_id and getattr(analysis, "misconceptions", None):
+            try:
+                for m in analysis.misconceptions:
+                    desc = m.description if hasattr(m, "description") else str(m)
+                    if desc:
+                        supabase.table("misconceptions").insert({
+                            "user_id": request.user_id,
+                            "topic_id": request.topic_id,
+                            "description": desc[:5000],
+                        }).execute()
+            except Exception as ex:
+                print(f"⚠️ Failed to persist misconceptions: {ex}")
         return analysis.model_dump()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -424,13 +439,25 @@ async def bust_misconception_endpoint(request: MisconceptionRequest):
             topic_context=request.topic_context
         )
         
-        # Log the misconception to persistent state
-        context = StudentContext(user_id="", session_id=request.session_id)
-        sm = StateMachine(context)
-        await sm.log_action("misconception_buster", {
-            "topic": request.concept_tested,
-            "confusion": analysis.inferred_confusion
-        })
+        # Persist misconception to DB when user_id provided
+        if request.user_id and getattr(analysis, "inferred_confusion", None):
+            try:
+                supabase.table("misconceptions").insert({
+                    "user_id": request.user_id,
+                    "topic_id": None,
+                    "description": (analysis.inferred_confusion or "")[:5000],
+                }).execute()
+            except Exception as ex:
+                print(f"⚠️ Failed to persist misconception: {ex}")
+        
+        # Log the misconception to persistent state (when session exists)
+        if request.session_id:
+            context = StudentContext(user_id=request.user_id or "", session_id=request.session_id)
+            sm = StateMachine(context)
+            await sm.log_action("misconception_buster", {
+                "topic": request.concept_tested,
+                "confusion": analysis.inferred_confusion
+            })
         
         return analysis.model_dump()
     except Exception as e:
@@ -438,6 +465,29 @@ async def bust_misconception_endpoint(request: MisconceptionRequest):
 
 
 # --- Session Management Routes ---
+
+class SessionStartRequest(BaseModel):
+    user_id: str
+    exam_type: str = "NEET"
+
+
+@app.post("/api/session/start")
+async def create_study_session(request: SessionStartRequest):
+    """Create a new study session and return its id (for autopilot or state persistence)."""
+    try:
+        row = supabase.table("study_sessions").insert({
+            "user_id": request.user_id,
+            "exam_type": request.exam_type,
+            "current_state": "INTAKE",
+        }).execute()
+        if row.data and len(row.data) > 0:
+            return {"session_id": str(row.data[0]["id"])}
+        raise HTTPException(status_code=500, detail="Failed to create session")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/session/{session_id}/state")
 async def get_session_state(session_id: str):
@@ -477,6 +527,7 @@ class AutopilotStartRequest(BaseModel):
     study_plan: dict
     exam_type: str = "NEET"
     duration_minutes: int = 30
+    user_id: Optional[str] = None  # For persisting study_sessions and topics
 
 
 @app.post("/api/autopilot/start")
@@ -494,6 +545,37 @@ async def start_autopilot_session(session_id: str, request: AutopilotStartReques
         existing = get_session(session_id)
         if existing and existing.status == "running":
             raise HTTPException(status_code=400, detail="Session already running")
+
+        # Ensure study_sessions row exists for state_machine (and optionally create topics)
+        if request.user_id:
+            try:
+                r = supabase.table("study_sessions").select("id").eq("id", session_id).execute()
+                if not r.data or len(r.data) == 0:
+                    supabase.table("study_sessions").insert({
+                        "id": session_id,
+                        "user_id": request.user_id,
+                        "exam_type": request.exam_type,
+                        "current_state": "INTAKE",
+                    }).execute()
+                    # Insert topics from study plan so topics table is populated
+                    schedule = request.study_plan.get("schedule") or []
+                    topic_names = set()
+                    for day in schedule:
+                        for t in (day.get("topics") or []):
+                            name = t.get("name") if isinstance(t, dict) else getattr(t, "name", None)
+                            if name:
+                                topic_names.add(name)
+                    for name in topic_names:
+                        try:
+                            supabase.table("topics").insert({
+                                "session_id": session_id,
+                                "name": name,
+                                "status": "pending",
+                            }).execute()
+                        except Exception as te:
+                            print(f"⚠️ Failed to insert topic {name}: {te}")
+            except Exception as e:
+                print(f"⚠️ Failed to persist session/topics: {e}")
         
         session = await start_autopilot(
             session_id=session_id,

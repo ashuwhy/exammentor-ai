@@ -242,6 +242,14 @@ export default function QuizPage() {
     
     setLoadingMisconception(true);
     try {
+      const userId =
+        typeof window !== "undefined"
+          ? localStorage.getItem("app-user-id")
+          : null;
+      const sessionId =
+        typeof window !== "undefined"
+          ? localStorage.getItem("app-session-id")
+          : null;
       const result = await bustMisconceptionAction({
         question_id: currentQuestion.id,
         question_text: currentQuestion.text,
@@ -250,7 +258,8 @@ export default function QuizPage() {
         student_answer_index: selectedOption || 0,
         concept_tested: currentQuestion.concept_tested || topicName,
         topic_context: getContext(),
-        session_id: "demo-session"
+        ...(sessionId ? { session_id: sessionId } : {}),
+        ...(userId ? { user_id: userId } : {}),
       });
       if (result) {
         setMisconception(result);
@@ -390,7 +399,7 @@ export default function QuizPage() {
             </div>
             <div className="flex items-center gap-3">
               <span
-                className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+                className={`px-4 py-2 rounded-lg text-sm font-semibold backdrop-blur-sm ${
                   currentQuestion.difficulty === "easy"
                     ? "bg-chart-2/20 text-chart-2"
                     : currentQuestion.difficulty === "medium"

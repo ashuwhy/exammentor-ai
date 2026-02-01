@@ -143,7 +143,7 @@ export default function AutopilotPage() {
   const [session, setSession] = useState<AutopilotSession | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [sessionId] = useState(() => `autopilot-${Date.now()}`);
+  const [sessionId, setSessionId] = useState(() => `autopilot-${Date.now()}`);
 
   const runLogRef = useRef<HTMLDivElement>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
@@ -223,8 +223,26 @@ export default function AutopilotPage() {
     setLoading(true);
     setError(null);
     try {
+      const userId =
+        typeof window !== "undefined"
+          ? localStorage.getItem("app-user-id")
+          : null;
+      let sid = sessionId;
+      if (userId) {
+        const { startStudySessionAction } = await import("@/app/actions");
+        const created = await startStudySessionAction(
+          userId,
+          localStorage.getItem("examType") || "NEET"
+        );
+        if (created?.session_id) {
+          sid = created.session_id;
+          setSessionId(sid);
+          if (typeof window !== "undefined")
+            localStorage.setItem("app-session-id", sid);
+        }
+      }
       const res = await fetch(
-        `${API_BASE}/api/autopilot/start?session_id=${sessionId}`,
+        `${API_BASE}/api/autopilot/start?session_id=${sid}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -232,6 +250,7 @@ export default function AutopilotPage() {
             study_plan: plan,
             exam_type: localStorage.getItem("examType") || "NEET",
             duration_minutes: 30, // 30 min full session
+            ...(userId ? { user_id: userId } : {}),
           }),
         },
       );

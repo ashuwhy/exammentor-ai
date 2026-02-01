@@ -173,7 +173,7 @@ async def generate_verified_plan_with_history(
     Returns full version history for the self-correction diff UI.
     This is the key "Action Era" feature that shows judges how the AI
     identifies problems and fixes them autonomously.
-    """
+    \"""
     Returns full version history for the self-correction diff UI.
     This is the key "Action Era" feature that shows judges how the AI
     identifies problems and fixes them autonomously.
@@ -246,7 +246,7 @@ async def generate_verified_plan_with_history(
         
         # Fix the plan (self-correction)
         fix_prompt = f"""
-You are an expert exam strategist. Fix the draft study plan based on the auditor's critique.
+You are an expert exam strategist. Fix the draft study plan based on the auditor\'s critique.
 
 FIX CRITIQUE:
 {verification.critique}
@@ -407,7 +407,7 @@ async def stream_verified_plan_with_history(
         
         # Fix the plan (self-correction)
         fix_prompt = f"""
-You are an expert exam strategist. Fix the draft study plan based on the auditor's critique.
+You are an expert exam strategist. Fix the draft study plan based on the auditor\'s critique.
 
 FIX CRITIQUE:
 {verification.critique}

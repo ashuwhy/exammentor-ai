@@ -104,11 +104,16 @@ function ResultsContent() {
         const examType = localStorage.getItem("examType") || "NEET";
         const context = plan ? `Exam: ${examType}. Study plan context available.` : `Exam: ${examType}`;
 
-        // Call analysis API
+        // Call analysis API (pass userId so misconceptions are persisted)
+        const userId =
+          typeof window !== "undefined"
+            ? localStorage.getItem("app-user-id")
+            : null;
         const analysisData = await analyzePerformanceAction(
           quizAnswers,
           topic,
-          context
+          context,
+          userId ? { userId } : undefined
         );
 
         if (!analysisData) {

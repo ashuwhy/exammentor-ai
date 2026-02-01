@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { PlanSkeleton } from "@/components/ui/Skeleton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/Card";
+import { startStudySessionAction } from "@/app/actions";
 
 
 interface Topic {
@@ -56,6 +57,18 @@ export default function PlanPage() {
       console.error("Plan parsing error:", err);
     } finally {
       setLoading(false);
+    }
+
+    // Ensure we have a study session for persistence (if user is logged in)
+    const userId = localStorage.getItem("app-user-id");
+    const existingSession = localStorage.getItem("app-session-id");
+    if (userId && !existingSession) {
+      startStudySessionAction(userId, localStorage.getItem("examType") || "NEET").then(
+        (created) => {
+          if (created?.session_id)
+            localStorage.setItem("app-session-id", created.session_id);
+        }
+      );
     }
   }, [router]);
 
