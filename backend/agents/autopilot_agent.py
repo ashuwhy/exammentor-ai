@@ -119,16 +119,21 @@ class AutopilotEngine:
         self.waiting_event = asyncio.Event()
         self.user_answer_index: Optional[int] = None
 
-    async def wait_for_answer(self) -> int:
-        """Pause execution until the user submits an answer."""
+    async def wait_for_answer(self, timeout_seconds: int = 60) -> int:
+        """Pause execution until the user submits an answer or timeout."""
         self.session.awaiting_input = True
         self.waiting_event.clear()
         self.user_answer_index = None
         
-        print("[AUTOPILOT] Waiting for user input...")
+        print(f"[AUTOPILOT] Waiting for user input (timeout: {timeout_seconds}s)...")
         
-        # Wait until submit_answer is called
-        await self.waiting_event.wait()
+        try:
+            # Wait with timeout to prevent hanging
+            await asyncio.wait_for(self.waiting_event.wait(), timeout=timeout_seconds)
+        except asyncio.TimeoutError:
+            print("[AUTOPILOT] Answer timeout - skipping question")
+            self.session.awaiting_input = False
+            return -1  # -1 means timeout/skip
         
         self.session.awaiting_input = False
         print(f"[AUTOPILOT] Received answer: {self.user_answer_index}")
@@ -275,7 +280,26 @@ Return your decision using the response schema.
 
         explanation = await self._retry_operation(_call_tutor)
         
-        self.session.current_content = explanation.intuition if explanation else "Lesson content unavailable."
+        # Build rich content for UI display (not just intuition)
+        if explanation:
+            content_parts = [f"## {topic}\n"]
+            content_parts.append(f"**Intuition:** {explanation.intuition}\n")
+            
+            for step in explanation.steps:
+                content_parts.append(f"\n### {step.title}")
+                content_parts.append(step.content)
+                if step.analogy:
+                    content_parts.append(f"\n*Analogy: {step.analogy}*")
+            
+            if explanation.real_world_example:
+                content_parts.append(f"\n\n**Real-World Example:** {explanation.real_world_example}")
+            
+            if explanation.common_pitfall:
+                content_parts.append(f"\n\n**Common Pitfall:** {explanation.common_pitfall}")
+                
+            self.session.current_content = "\n".join(content_parts)
+        else:
+            self.session.current_content = "Lesson content unavailable."
         
         duration = int((datetime.datetime.now() - start_time).total_seconds() * 1000)
         
