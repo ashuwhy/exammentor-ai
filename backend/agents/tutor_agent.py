@@ -52,7 +52,8 @@ async def stream_explanation(
     topic: str,
     context: str,
     difficulty: str = "medium",
-    history: Optional[List[dict]] = None
+    history: Optional[List[dict]] = None,
+    attached_context: Optional[str] = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream an explanation character-by-character for live UI feedback.
@@ -62,6 +63,7 @@ async def stream_explanation(
         context: Relevant context from the syllabus/textbook
         difficulty: easy, medium, or hard - adjusts explanation depth
         history: Previous conversation messages [{"role": "user", "content": "..."}, ...]
+        attached_context: Optional text from uploaded PDF or image explanation (Study Material)
         
     Yields:
         str: Chunks of the explanation text
@@ -81,12 +83,20 @@ async def stream_explanation(
             role = "Student" if msg.get("role") == "user" else "Tutor"
             history_text += f"{role}: {msg.get('content')}\n"
     
+    attached_block = ""
+    if attached_context and attached_context.strip():
+        attached_block = f"""
+STUDENT'S UPLOADED MATERIAL (syllabus, textbook, or notes — use this when answering):
+{attached_context[:8000]}
+"""
+    
     prompt = f"""
 You are an expert tutor using the Feynman Technique.
 You are helping a student prepare for their exam.
 
 CONTEXT FROM THEIR STUDY MATERIAL:
 {context[:5000]}
+{attached_block}
 
 {history_text}
 
@@ -122,7 +132,8 @@ async def generate_explanation(
     topic: str,
     context: str,
     difficulty: str = "medium",
-    history: Optional[List[dict]] = None
+    history: Optional[List[dict]] = None,
+    attached_context: Optional[str] = None,
 ) -> TutorExplanation:
     """
     Generate a complete structured explanation (non-streaming).
@@ -138,12 +149,20 @@ async def generate_explanation(
             role = "Student" if msg.get("role") == "user" else "Tutor"
             history_text += f"{role}: {msg.get('content')}\n"
 
+    attached_block = ""
+    if attached_context and attached_context.strip():
+        attached_block = f"""
+STUDENT'S UPLOADED MATERIAL (syllabus, textbook, or notes — use this when answering):
+{attached_context[:8000]}
+"""
+
     prompt = f"""
 You are an expert tutor using the Feynman Technique.
 Explain "{topic}" comprehensively.
 
 CONTEXT:
 {context[:5000]}
+{attached_block}
 
 {history_text}
 
@@ -201,6 +220,31 @@ INSTRUCTIONS:
     )
 
     return response.parsed
+
+
+async def describe_image_for_context(
+    image_bytes: bytes,
+    mime_type: str = "image/jpeg"
+) -> str:
+    """
+    Describe the contents of an image in plain text for use as Study Material context.
+    Use this for any uploaded image (documents, certificates, diagrams, notes) so the
+    tutor can reference what the user actually uploaded, not a topic-based explanation.
+    """
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    prompt = """Describe the contents of this image in detail so it can be used as study material or reference context.
+Include: type of document or image (e.g. birth certificate, diagram, handwritten notes), any text you can read,
+and key visual elements. Be factual and neutral. Do not explain a specific academic topic—just describe what is in the image."""
+    response = await client.aio.models.generate_content(
+        model=os.getenv("GEMINI_MODEL", "gemini-2.5-pro-preview-05-06"),
+        contents=[
+            prompt,
+            genai.types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
+        ],
+    )
+    if response.text:
+        return response.text.strip()[:8000]
+    return "(Could not describe image.)"
 
 
 # --- Test ---

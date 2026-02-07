@@ -9,20 +9,22 @@ interface TutorStreamProps {
   topic: string
   context?: string
   difficulty?: 'easy' | 'medium' | 'hard'
+  attachedContext?: string | null
   onComplete?: (content: string) => void
 }
 
-export function TutorStream({ 
-  topic, 
-  context = '', 
+export function TutorStream({
+  topic,
+  context = '',
   difficulty = 'medium',
-  onComplete 
+  attachedContext,
+  onComplete
 }: TutorStreamProps) {
   const [content, setContent] = useState('')
   const [isStreaming, setIsStreaming] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  
+
   // Refs for buffering and scroll control
   const contentBuffer = useRef('')
   const autoScrollRef = useRef(true)
@@ -40,20 +42,20 @@ export function TutorStream({
   // Effect to apply scroll when content updates, only if sticky scroll is active
   useEffect(() => {
     if (autoScrollRef.current && containerRef.current) {
-        containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: 'smooth' })
+      containerRef.current.scrollTo({ top: containerRef.current.scrollHeight, behavior: 'smooth' })
     }
   }, [content])
 
   // Periodic flush effect to update UI at a smooth frame rate (e.g. 20fps)
   useEffect(() => {
     if (!isStreaming) return
-    
+
     const intervalId = setInterval(() => {
-        // Only trigger re-render if content has actually changed
-        if (content !== contentBuffer.current) {
-            setContent(contentBuffer.current)
-        }
-    }, 50) 
+      // Only trigger re-render if content has actually changed
+      if (content !== contentBuffer.current) {
+        setContent(contentBuffer.current)
+      }
+    }, 50)
 
     return () => clearInterval(intervalId)
   }, [isStreaming, content])
@@ -68,10 +70,12 @@ export function TutorStream({
 
       try {
         const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
+        const body: Record<string, unknown> = { topic, context, difficulty }
+        if (attachedContext?.trim()) body.attached_context = attachedContext
         const response = await fetch(`${API_BASE}/api/tutor/stream`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ topic, context, difficulty }),
+          body: JSON.stringify(body),
         })
 
         if (!response.ok) {
@@ -87,7 +91,7 @@ export function TutorStream({
 
         while (true) {
           const { done, value } = await reader.read()
-          
+
           if (done) break
 
           const chunk = decoder.decode(value, { stream: true })
@@ -126,15 +130,15 @@ export function TutorStream({
           <span className="text-sm">AI is thinking...</span>
         </div>
       )}
-      
-      <div 
+
+      <div
         ref={containerRef}
         onScroll={handleScroll}
         className="max-w-[90%] overflow-y-auto bg-card/60 backdrop-blur-md border border-border/50 rounded-lg px-4 py-3 shadow-sm"
         style={{ maxHeight: 'calc(100vh - 200px)' }}
       >
         {content ? (
-            <MarkdownRenderer content={content} />
+          <MarkdownRenderer content={content} />
         ) : (
           <div className="flex items-center justify-center h-32">
             <div className="w-8 h-8 border-2 border-primary/30 rounded-full animate-spin border-t-primary" />

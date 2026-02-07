@@ -58,7 +58,7 @@ export function PdfPlaceholder({
   onUpload,
 }: {
   topic: string
-  onUpload?: (url: string, type: MaterialType) => void
+  onUpload?: (url: string, type: MaterialType, file: File) => void
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -68,7 +68,7 @@ export function PdfPlaceholder({
     const url = URL.createObjectURL(file)
     const isPdf = file.type === 'application/pdf'
     const type: MaterialType = isPdf ? 'pdf' : 'image'
-    onUpload(url, type)
+    onUpload(url, type, file)
     e.target.value = ''
   }
 

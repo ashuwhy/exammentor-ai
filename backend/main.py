@@ -51,6 +51,7 @@ class TutorRequest(BaseModel):
     context: str
     difficulty: str = "medium"
     history: Optional[List[dict]] = None
+    attached_context: Optional[str] = None  # PDF text or image explanation from Study Material
 
 
 class QuizRequest(BaseModel):
@@ -233,7 +234,8 @@ async def explain_topic(request: TutorRequest):
             topic=request.topic,
             context=request.context,
             difficulty=request.difficulty,
-            history=request.history
+            history=request.history,
+            attached_context=request.attached_context,
         )
         return explanation.model_dump()
     except Exception as e:
@@ -250,19 +252,44 @@ async def stream_topic_explanation(request: TutorRequest):
             topic=request.topic,
             context=request.context,
             difficulty=request.difficulty,
-            history=request.history
+            history=request.history,
+            attached_context=request.attached_context,
         ):
             yield chunk
     
     return StreamingResponse(generate(), media_type="application/x-ndjson")
 
 
+class ExtractPdfRequest(BaseModel):
+    pdf_base64: str
+
+
+@app.post("/api/extract-pdf-text")
+async def extract_pdf_text_endpoint(request: ExtractPdfRequest):
+    """Extract text from an uploaded PDF for use as Study Material context."""
+    import base64
+    from pypdf import PdfReader
+    from io import BytesIO
+    try:
+        pdf_bytes = base64.b64decode(request.pdf_base64)
+        reader = PdfReader(BytesIO(pdf_bytes))
+        text_parts = []
+        for page in reader.pages[:50]:  # Limit to first 50 pages
+            t = page.extract_text()
+            if t:
+                text_parts.append(t)
+        text = "\n\n".join(text_parts).strip() or "(No text could be extracted from this PDF.)"
+        return {"text": text[:12000]}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"PDF extraction failed: {str(e)}")
+
+
 @app.post("/api/tutor/explain-image")
 async def explain_image_endpoint(request: ImageTutorRequest):
-    """Explain a topic using an uploaded image."""
+    """Explain a topic using an uploaded image (e.g. diagram for that topic)."""
     from agents.tutor_agent import explain_image
     import base64
-    
+
     try:
         image_bytes = base64.b64decode(request.image_base64)
         explanation = await explain_image(
@@ -271,6 +298,28 @@ async def explain_image_endpoint(request: ImageTutorRequest):
             mime_type=request.mime_type
         )
         return explanation.model_dump()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class DescribeImageRequest(BaseModel):
+    image_base64: str
+    mime_type: str = "image/jpeg"
+
+
+@app.post("/api/describe-image")
+async def describe_image_endpoint(request: DescribeImageRequest):
+    """Describe an image's contents for Study Material context (documents, certificates, notes, etc.)."""
+    from agents.tutor_agent import describe_image_for_context
+    import base64
+
+    try:
+        image_bytes = base64.b64decode(request.image_base64)
+        description = await describe_image_for_context(
+            image_bytes=image_bytes,
+            mime_type=request.mime_type
+        )
+        return {"description": description}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

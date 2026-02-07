@@ -196,19 +196,44 @@ export async function getExplanationAction(
   topic: string,
   context: string,
   difficulty: string = "medium",
-  history: any[] = [],
+  history: Array<{ role: string; content: string }> = [],
+  attachedContext?: string | null,
 ) {
   try {
+    const body: Record<string, unknown> = {
+      topic,
+      context,
+      difficulty,
+      history,
+    };
+    if (attachedContext?.trim()) body.attached_context = attachedContext;
+
     const res = await fetchWithRetry(`${API_BASE}/api/tutor/explain`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ topic, context, difficulty, history }),
+      body: JSON.stringify(body),
       retries: 2,
     });
 
     return await res.json();
   } catch (error) {
     console.error("Tutor error:", error);
+    return null;
+  }
+}
+
+export async function extractPdfTextAction(pdfBase64: string): Promise<{ text: string } | null> {
+  try {
+    const res = await fetchWithRetry(`${API_BASE}/api/extract-pdf-text`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pdf_base64: pdfBase64 }),
+      retries: 1,
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (error) {
+    console.error("PDF extract error:", error);
     return null;
   }
 }
@@ -332,6 +357,29 @@ export async function analyzePerformanceAction(
 }
 
 // --- Multimodal & Misconception Actions ---
+
+/** Describe an image for Study Material context (documents, certificates, notes). Use this for uploads, not topic-based explain. */
+export async function describeImageForContextAction(
+  base64Image: string,
+  mimeType: string = "image/jpeg",
+): Promise<{ description: string } | null> {
+  try {
+    const res = await fetchWithRetry(`${API_BASE}/api/describe-image`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        image_base64: base64Image,
+        mime_type: mimeType,
+      }),
+      retries: 1,
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (error) {
+    console.error("Describe image error:", error);
+    return null;
+  }
+}
 
 export async function explainImageAction(
   topic: string,

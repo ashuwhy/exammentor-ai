@@ -13,8 +13,8 @@ import {
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { TutorStream } from "@/components/TutorStream";
-import { PdfPlaceholder } from "@/components/PdfViewer";
-import { getExplanationAction } from "@/app/actions";
+import { PdfViewer, PdfPlaceholder, ImageMaterialViewer } from "@/components/PdfViewer";
+import { getExplanationAction, extractPdfTextAction, describeImageForContextAction } from "@/app/actions";
 import { Button } from "@/components/ui/button";
 // import { formatMarkdown } from "@/lib/markdown";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
@@ -25,7 +25,7 @@ export default function LearnPage() {
   const params = useParams();
   const topicId = params.topicId as string;
   const topicName = decodeURIComponent(topicId?.replace(/-/g, " ") || "Topic");
-  
+
   const [messages, setMessages] = useState<{ role: "user" | "ai"; content: string }[]>([]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -33,6 +33,10 @@ export default function LearnPage() {
   const [streamingContent, setStreamingContent] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [materialUrl, setMaterialUrl] = useState<string | null>(null);
+  const [materialType, setMaterialType] = useState<"pdf" | "image" | null>(null);
+  const [materialContext, setMaterialContext] = useState<string | null>(null);
+  const [materialContextLoading, setMaterialContextLoading] = useState(false);
 
   // User Persistence State
   const [isInitialized, setIsInitialized] = useState(false);
@@ -49,7 +53,7 @@ export default function LearnPage() {
       if (!topicId) return;
 
       const storedUserId = localStorage.getItem("app-user-id");
-      
+
       if (storedUserId) {
         setUserId(storedUserId);
         await fetchChatHistory(storedUserId);
@@ -66,7 +70,7 @@ export default function LearnPage() {
     try {
       const res = await fetch(`${API_BASE}/api/tutor/chat?user_id=${uid}&topic_id=${topicId}`);
       if (!res.ok) throw new Error("Failed to fetch history");
-      
+
       const data = await res.json();
       if (data.explanation) setStreamingContent(data.explanation);
       if (data.messages) setMessages(data.messages);
@@ -95,26 +99,26 @@ export default function LearnPage() {
   const handleNameSubmit = async () => {
     if (!nameInput.trim()) return;
     setIsLoggingIn(true);
-    
+
     try {
       const res = await fetch(`${API_BASE}/api/users/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: nameInput.trim() })
       });
-      
+
       if (!res.ok) throw new Error("Login failed");
-      
+
       const user = await res.json();
       localStorage.setItem("app-user-id", user.id);
       localStorage.setItem("app-user-name", user.name);
-      
+
       setUserId(user.id);
       setShowNameModal(false);
-      
+
       // After login, fetch existing history if any (merge or replace? For now replace basic state)
       await fetchChatHistory(user.id);
-      
+
     } catch (err) {
       setError("Failed to login. Please try again.");
     } finally {
@@ -129,12 +133,54 @@ export default function LearnPage() {
     return plan ? `Exam: ${examType}. Study plan context available.` : `Exam: ${examType}`;
   };
 
+  const fileToBase64 = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        const base64 = dataUrl.split(",")[1];
+        resolve(base64 || "");
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+  const handleMaterialUpload = async (url: string, type: "pdf" | "image", file: File) => {
+    if (materialUrl) URL.revokeObjectURL(materialUrl);
+    setMaterialUrl(url);
+    setMaterialType(type);
+    setMaterialContext(null);
+    setMaterialContextLoading(true);
+    try {
+      if (type === "pdf") {
+        const base64 = await fileToBase64(file);
+        const result = await extractPdfTextAction(base64);
+        if (result?.text) setMaterialContext(result.text);
+      } else {
+        const base64 = await fileToBase64(file);
+        const mime = file.type || "image/jpeg";
+        const result = await describeImageForContextAction(base64, mime);
+        if (result?.description) setMaterialContext(result.description);
+      }
+    } catch {
+      // Keep materialContext null on error; user still sees the file
+    } finally {
+      setMaterialContextLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (materialUrl) URL.revokeObjectURL(materialUrl);
+    };
+  }, [materialUrl]);
+
   const handleSend = async () => {
     if (!input.trim() || isTyping) return;
 
     const userMessage = input.trim();
     const newMessages = [...messages, { role: "user" as const, content: userMessage }];
-    
+
     setMessages(newMessages);
     setInput("");
     setIsTyping(true);
@@ -148,19 +194,20 @@ export default function LearnPage() {
         userMessage,
         getContext(),
         "medium",
-        newMessages // Pass conversation history
+        newMessages,
+        materialContext
       );
 
       if (response) {
         const aiMessage = {
-            role: "ai" as const,
-            content: response.intuition || response.steps?.[0]?.content || "I understand your question. Let me explain...",
+          role: "ai" as const,
+          content: response.intuition || response.steps?.[0]?.content || "I understand your question. Let me explain...",
         };
         const updatedMessages = [...newMessages, aiMessage];
         setMessages(updatedMessages);
-        
+
         if (userId) {
-            saveToDb(userId, updatedMessages, streamingContent);
+          saveToDb(userId, updatedMessages, streamingContent);
         }
       } else {
         throw new Error("No response from tutor");
@@ -169,8 +216,8 @@ export default function LearnPage() {
       setError(err instanceof Error ? err.message : "Failed to get response");
       // Still show error message in chat
       setMessages(prev => [...prev, {
-          role: "ai",
-          content: "I apologize, but I'm having trouble processing that right now."
+        role: "ai",
+        content: "I apologize, but I'm having trouble processing that right now."
       }]);
     } finally {
       setIsTyping(false);
@@ -181,7 +228,7 @@ export default function LearnPage() {
     setStreamingContent(content);
     setIsStreaming(false);
     if (userId) {
-        saveToDb(userId, messages, content);
+      saveToDb(userId, messages, content);
     }
   };
 
@@ -200,30 +247,30 @@ export default function LearnPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-fade-in">
           <Card variant="elevated" className="w-full max-w-md p-8">
             <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-4">
-                    <HugeiconsIcon icon={UserIcon} size={32} className="text-primary" />
-                </div>
-                <h2 className="text-2xl font-bold text-foreground">Welcome to AI Tutor</h2>
-                <p className="text-muted-foreground mt-2">What should we call you? We'll save your progress.</p>
+              <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-4">
+                <HugeiconsIcon icon={UserIcon} size={32} className="text-primary" />
+              </div>
+              <h2 className="text-2xl font-bold text-foreground">Welcome to AI Tutor</h2>
+              <p className="text-muted-foreground mt-2">What should we call you? We'll save your progress.</p>
             </div>
-            
+
             <div className="space-y-4">
-                <input
-                    type="text"
-                    value={nameInput}
-                    onChange={(e) => setNameInput(e.target.value)}
-                    placeholder="Enter your name..."
-                    className="input-clean w-full text-lg px-4 py-3"
-                    onKeyDown={(e) => e.key === 'Enter' && handleNameSubmit()}
-                />
-                <Button 
-                    variant="premium" 
-                    className="w-full h-12 text-lg"
-                    onClick={handleNameSubmit}
-                    disabled={isLoggingIn || !nameInput.trim()}
-                >
-                    {isLoggingIn ? "Saving..." : "Start Learning"}
-                </Button>
+              <input
+                type="text"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                placeholder="Enter your name..."
+                className="input-clean w-full text-lg px-4 py-3"
+                onKeyDown={(e) => e.key === 'Enter' && handleNameSubmit()}
+              />
+              <Button
+                variant="premium"
+                className="w-full h-12 text-lg"
+                onClick={handleNameSubmit}
+                disabled={isLoggingIn || !nameInput.trim()}
+              >
+                {isLoggingIn ? "Saving..." : "Start Learning"}
+              </Button>
             </div>
           </Card>
         </div>
@@ -244,16 +291,43 @@ export default function LearnPage() {
                 </p>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowPDF(false)}
-            >
-              Hide
-            </Button>
+            <div className="flex items-center gap-2">
+              {materialUrl && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (materialUrl) URL.revokeObjectURL(materialUrl);
+                    setMaterialUrl(null);
+                    setMaterialType(null);
+                    setMaterialContext(null);
+                  }}
+                >
+                  Clear
+                </Button>
+              )}
+              {materialContextLoading && (
+                <span className="text-xs text-muted-foreground">Adding to chat context…</span>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowPDF(false)}
+              >
+                Hide
+              </Button>
+            </div>
           </div>
           <div className="flex-1 p-6 overflow-y-auto" style={{ minHeight: 0 }}>
-            <PdfPlaceholder topic={topicName} />
+            {materialUrl ? (
+              materialType === "pdf" ? (
+                <PdfViewer fileUrl={materialUrl} className="min-h-[400px]" />
+              ) : (
+                <ImageMaterialViewer src={materialUrl} className="min-h-[400px]" />
+              )
+            ) : (
+              <PdfPlaceholder topic={topicName} onUpload={handleMaterialUpload} />
+            )}
           </div>
         </div>
       )}
@@ -310,10 +384,11 @@ export default function LearnPage() {
               <div className="">
                 {userId && (
                     <TutorStream
-                    topic={topicName}
-                    context={getContext()}
-                    difficulty="medium"
-                    onComplete={handleStreamComplete}
+                      topic={topicName}
+                      context={getContext()}
+                      difficulty="medium"
+                      attachedContext={materialContext}
+                      onComplete={handleStreamComplete}
                     />
                 )}
               </div>
@@ -335,32 +410,29 @@ export default function LearnPage() {
           {messages.map((msg, i) => (
             <div
               key={i}
-              className={`flex ${
-                msg.role === "user" ? "justify-end" : "justify-start"
-              } animate-slide-up`}
+              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"
+                } animate-slide-up`}
             >
               <div
-                className={`max-w-[80%] rounded-lg px-4 py-3 shadow-sm ${
-                  msg.role === "user"
+                className={`max-w-[80%] rounded-lg px-4 py-3 shadow-sm ${msg.role === "user"
                     ? "bg-primary text-primary-foreground"
                     : "bg-card/60 backdrop-blur-md border border-border/50"
-                }`}
+                  }`}
               >
-                <div 
-                    className={`whitespace-pre-wrap ${
-                      msg.role === "user" ? "text-primary-foreground" : "text-foreground"
+                <div
+                  className={`whitespace-pre-wrap ${msg.role === "user" ? "text-primary-foreground" : "text-foreground"
                     }`}
                 >
-                    {msg.role === "ai" ? (
-                      <MarkdownRenderer content={msg.content} />
-                    ) : (
-                      msg.content
-                    )}
+                  {msg.role === "ai" ? (
+                    <MarkdownRenderer content={msg.content} />
+                  ) : (
+                    msg.content
+                  )}
                 </div>
               </div>
             </div>
           ))}
-          
+
           {isTyping && (
             <div className="flex justify-start">
               <div className="bg-card/60 backdrop-blur-md border border-border/50 rounded-lg px-4 py-3 shadow-sm">
