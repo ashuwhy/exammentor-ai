@@ -60,6 +60,12 @@ export function TutorStream({
     return () => clearInterval(intervalId)
   }, [isStreaming, content])
 
+  // Use ref to store onComplete to avoid re-triggering stream
+  const onCompleteRef = useRef(onComplete)
+  useEffect(() => {
+    onCompleteRef.current = onComplete
+  }, [onComplete])
+
   useEffect(() => {
     const streamExplanation = async () => {
       setIsStreaming(true)
@@ -101,7 +107,7 @@ export function TutorStream({
 
         // Final flush
         setContent(contentBuffer.current)
-        onComplete?.(contentBuffer.current)
+        onCompleteRef.current?.(contentBuffer.current)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error')
       } finally {
@@ -112,7 +118,7 @@ export function TutorStream({
     if (topic) {
       streamExplanation()
     }
-  }, [topic, context, difficulty, onComplete])
+  }, [topic, context, difficulty, attachedContext])
 
   if (error) {
     return (

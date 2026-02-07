@@ -5,7 +5,6 @@ Uses Pydantic models to guarantee valid JSON output from the LLM.
 """
 
 import os
-import os
 from pydantic import BaseModel, Field
 from typing import List, Optional, AsyncGenerator
 from services.genai_service import client
@@ -76,7 +75,7 @@ INSTRUCTIONS:
 
     # Use aio for async generation
     response = await client.aio.models.generate_content(
-        model=os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
+        model=os.getenv("GEMINI_MODEL", "gemini-3-pro-preview"),
         contents=prompt,
         config={
             "response_mime_type": "application/json",
@@ -115,7 +114,7 @@ Be critical. If anything is wrong, set is_valid to false and provide a detailed 
 """
 
     response = await client.aio.models.generate_content(
-        model=os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
+        model=os.getenv("GEMINI_MODEL", "gemini-3-pro-preview"),
         contents=prompt,
         config={
             "response_mime_type": "application/json",
@@ -170,10 +169,6 @@ async def generate_verified_plan_with_history(
     """
     Generate a study plan with self-correction verification loop.
     
-    Returns full version history for the self-correction diff UI.
-    This is the key "Action Era" feature that shows judges how the AI
-    identifies problems and fixes them autonomously.
-    \"""
     Returns full version history for the self-correction diff UI.
     This is the key "Action Era" feature that shows judges how the AI
     identifies problems and fixes them autonomously.
@@ -264,7 +259,7 @@ REGENERATE THE FULL STUDY PLAN INCORPORATING ALL FIXES.
 Do NOT skip any topics. Ensure all days have <= 8 hours.
 """
         response = await client.aio.models.generate_content(
-            model=os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
+            model=os.getenv("GEMINI_MODEL", "gemini-3-pro-preview"),
             contents=fix_prompt,
             config={
                 "response_mime_type": "application/json",
@@ -425,7 +420,7 @@ REGENERATE THE FULL STUDY PLAN INCORPORATING ALL FIXES.
 Do NOT skip any topics. Ensure all days have <= 8 hours.
 """
         response = await client.aio.models.generate_content(
-            model=os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
+            model=os.getenv("GEMINI_MODEL", "gemini-3-pro-preview"),
             contents=fix_prompt,
             config={
                 "response_mime_type": "application/json",

@@ -1,4 +1,5 @@
 from enum import Enum
+import os
 from typing import List, Optional
 from pydantic import BaseModel
 from services.genai_service import client  # Centralized client
@@ -78,7 +79,7 @@ async def route_request(user_text: str, current_exam_context: str = None) -> Rou
     
     # Using client.aio for async call as per plan_agent.py pattern
     response = await client.aio.models.generate_content(
-        model="gemini-2.0-flash-exp", # Using fast model as requested
+        model=os.getenv("GEMINI_MODEL", "gemini-3-pro-preview"), # Using configured model
         contents=prompt,
         config={
             "response_mime_type": "application/json",
